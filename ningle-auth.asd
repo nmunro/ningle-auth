@@ -6,9 +6,6 @@
   :depends-on (:cl-dotenv
                :clack
                :djula
-               :cl-forms
-               :cl-forms.djula
-               :cl-forms.ningle
                :envy-ningle
                :mito
                :ningle)
