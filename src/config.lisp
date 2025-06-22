@@ -12,5 +12,4 @@
 (defconfig |test|
   `(:debug T
     :middleware ((:session)
-                 (:mito (:sqlite3 :database-name ,(uiop:getenv "SQLITE_DB_NAME")))
-                 (:static :root ,(asdf:system-relative-pathname :ningle-auth "src/static/") :path "/public/"))))
+                 (:mito (:sqlite3 :database-name ,(uiop:getenv "SQLITE_DB_NAME"))))))
