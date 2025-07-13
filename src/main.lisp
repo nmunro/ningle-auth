@@ -30,7 +30,6 @@
 
 (setf (ningle:route *app* "/register" :method '(:GET :POST))
     (lambda (params)
-        (format t "Testin: ~A~%" (get-config :login-redirect))
         (let ((form (cl-forms:find-form 'register)))
           (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) "/register"))
           (if (string= "GET" (lack.request:request-method ningle:*request*))
