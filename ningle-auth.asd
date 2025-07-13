@@ -12,6 +12,9 @@
   :components ((:module "src"
                 :components
                 ((:file "config")
+                 (:file "forms")
+                 (:file "models")
+                 (:file "migrations")
                  (:file "main"))))
   :in-order-to ((test-op (test-op "ningle-auth/tests"))))
 
