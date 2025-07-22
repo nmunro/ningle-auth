@@ -1,6 +1,7 @@
 (defpackage ningle-auth/forms
   (:use :cl)
   (:export #:register
+           #:login
            #:email
            #:username
            #:password
@@ -21,3 +22,8 @@
    (password        :password :value "" :constraints *password-validator*)
    (password-verify :password :value "" :constraints *password-validator*)
    (submit          :submit   :label "Register")))
+
+(cl-forms:defform login (:id "login" :csrf-protection t :csrf-field-name "csrftoken")
+  ((username :string   :value "")
+   (password :password :value "")
+   (submit   :submit   :value "Login")))

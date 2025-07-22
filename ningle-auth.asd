@@ -6,14 +6,19 @@
   :depends-on (:cl-dotenv
                :clack
                :djula
+               :cl-forms
+               :cl-forms.djula
+               :cl-forms.ningle
                :envy-ningle
                :mito
-               :ningle)
+               :ningle
+               :cu-sith)
   :components ((:module "src"
                 :components
                 ((:file "config")
                  (:file "forms")
                  (:file "models")
+                 (:file "middleware")
                  (:file "migrations")
                  (:file "main"))))
   :in-order-to ((test-op (test-op "ningle-auth/tests"))))

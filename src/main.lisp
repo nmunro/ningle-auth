@@ -5,6 +5,7 @@
                 #:username
                 #:password
                 #:password-verify
+                #:login
                 #:register)
   (:export #:*app*
            #:*config*
@@ -17,6 +18,10 @@
 
 (defvar *app* (make-instance 'ningle:app))
 (defvar *config* nil)
+(cu-sith:setup
+    :user-p #'(lambda (username) (mito:find-dao 'ningle-auth/models:user :username username))
+    :user-pass #'(lambda (user) (ningle-auth/models:password-hash user))
+    :user-roles #'(lambda (user) '(:user)))
 
 (defun set-config (config)
   (setf *config* config))
@@ -69,12 +74,24 @@
 ;; Must be logged out
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
     (lambda (params)
-        (djula:render-template* "ningle-auth/login.html" nil :title "Login")))
+        (let* ((user (funcall cu-sith::*user-p* "nmunro"))
+               (hash (funcall cu-sith::*user-pass* user))
+               (roles (funcall cu-sith::*user-roles* user)))
+            (format t "~%User object: ~A~%" user)
+            (format t "Password hash: ~A~%" hash)
+            (format t "User roles: ~A~%" roles)
+            (format t "Username: ~A~%" (ningle-auth/models:username user)))
+        (let ((form (cl-forms:find-form 'login)))
+            (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) (get-config :login-redirect)))
+            (if (string= "GET" (lack.request:request-method ningle:*request*))
+                (djula:render-template* "ningle-auth/login.html" nil :title "Login" :form form)
+                (djula:render-template* "ningle-auth/login.html" nil :title "Login")))))
 
 ;; Must be logged in
 (setf (ningle:route *app* "/logout" :method '(:GET :POST))
     (lambda (params)
-        (djula:render-template* "ningle-auth/logout.html" nil :title "Logout")))
+        (cu-sith:logout)
+        (ingle:redirect "/")))
 
 ;; Must be logged out
 (setf (ningle:route *app* "/reset")

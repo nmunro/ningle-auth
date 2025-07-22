@@ -4,23 +4,13 @@
 
 (in-package :ningle-auth/migrations)
 
-(defvar *config* nil)
-
-(defun set-config (config)
-  (setf *config* config))
-
 (defun migrate ()
   "Explicitly apply migrations when called."
-  (unless *config*
-    (error "No config provided. Call set-config before migrate."))
-
   (format t "Applying migrations...~%")
-
-  (multiple-value-bind (backend args) (envy-ningle:extract-mito-config *config*)
-    (unless backend
-      (error "No :mito middleware config found in ENVY config."))
-    (apply #'mito:connect-toplevel backend args)
-    (mito:ensure-table-exists 'ningle-auth/models:user)
-    (mito:migrate-table 'ningle-auth/models:user)
-    (mito:disconnect-toplevel)
-    (format t "Migrations complete.~%")))
+  (mito:ensure-table-exists 'ningle-auth/models:user)
+  (mito:ensure-table-exists 'ningle-auth/models:role)
+  (mito:ensure-table-exists 'ningle-auth/models:permission)
+  (mito:migrate-table 'ningle-auth/models:user)
+  (mito:migrate-table 'ningle-auth/models:role)
+  (mito:migrate-table 'ningle-auth/models:permission)
+  (format t "Migrations complete.~%"))
