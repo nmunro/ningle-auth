@@ -19,9 +19,9 @@
 (defvar *app* (make-instance 'ningle:app))
 (defvar *config* nil)
 (cu-sith:setup
-    :user-p #'(lambda (username) (mito:find-dao 'ningle-auth/models:user :username username))
-    :user-pass #'(lambda (user) (ningle-auth/models:password-hash user))
-    :user-roles #'(lambda (user) '(:user)))
+    :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username))
+    :user-pass (lambda (user) (ningle-auth/models:password-hash user))
+    :user-roles (lambda (user) (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user))))))
 
 (defun set-config (config)
   (setf *config* config))
@@ -79,7 +79,7 @@
                (roles (funcall cu-sith::*user-roles* user)))
             (format t "~%User object: ~A~%" user)
             (format t "Password hash: ~A~%" hash)
-            (format t "User roles: ~A~%" roles)
+            (format t "User permissions: ~A~%" roles)
             (format t "Username: ~A~%" (ningle-auth/models:username user)))
         (let ((form (cl-forms:find-form 'login)))
             (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) (get-config :login-redirect)))

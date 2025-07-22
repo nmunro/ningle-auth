@@ -3,6 +3,9 @@
   (:import-from :mito-auth
                 :password-hash)
   (:export #:user
+           #:id
+           #:created-at
+           #:updated-at
            #:email
            #:username
            #:password-hash
