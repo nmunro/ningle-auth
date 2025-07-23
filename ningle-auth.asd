@@ -18,7 +18,6 @@
                 ((:file "config")
                  (:file "forms")
                  (:file "models")
-                 (:file "middleware")
                  (:file "migrations")
                  (:file "main"))))
   :in-order-to ((test-op (test-op "ningle-auth/tests"))))

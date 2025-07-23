@@ -1,12 +1,5 @@
 (defpackage ningle-auth
-  (:use :cl :sxql)
-  (:import-from :ningle-auth/forms
-                #:email
-                #:username
-                #:password
-                #:password-verify
-                #:login
-                #:register)
+  (:use :cl :sxql :ningle-auth/forms)
   (:export #:*app*
            #:*config*
            #:start
@@ -18,10 +11,6 @@
 
 (defvar *app* (make-instance 'ningle:app))
 (defvar *config* nil)
-(cu-sith:setup
-    :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username))
-    :user-pass (lambda (user) (ningle-auth/models:password-hash user))
-    :user-roles (lambda (user) (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user))))))
 
 (defun set-config (config)
   (setf *config* config))
@@ -30,6 +19,10 @@
   (if keyp
       (getf *config* key)
       *config*))
+
+(cu-sith:setup
+    :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username))
+    :user-roles (lambda (user) (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user))))))
 
 (djula:add-template-directory (asdf:system-relative-pathname :ningle-auth "src/templates/"))
 
@@ -62,7 +55,7 @@
                                            :email email
                                            :username username
                                            :password password)
-                          (ingle:redirect (get-config :login-redirect))))))
+                          (ingle:redirect (concatenate 'string (get-config :mount-path) "/login"))))))
 
                 (error (err)
                     (djula:render-template* "error.html" nil :title "Error" :error err))
@@ -74,24 +67,37 @@
 ;; Must be logged out
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
     (lambda (params)
-        (let* ((user (funcall cu-sith::*user-p* "nmunro"))
-               (hash (funcall cu-sith::*user-pass* user))
-               (roles (funcall cu-sith::*user-roles* user)))
-            (format t "~%User object: ~A~%" user)
-            (format t "Password hash: ~A~%" hash)
-            (format t "User permissions: ~A~%" roles)
-            (format t "Username: ~A~%" (ningle-auth/models:username user)))
         (let ((form (cl-forms:find-form 'login)))
-            (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) (get-config :login-redirect)))
+            (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) "/login"))
             (if (string= "GET" (lack.request:request-method ningle:*request*))
-                (djula:render-template* "ningle-auth/login.html" nil :title "Login" :form form)
-                (djula:render-template* "ningle-auth/login.html" nil :title "Login")))))
+                (djula:render-template* "ningle-auth/login.html" nil :form form)
+                (handler-case
+                    (progn
+                        (cl-forms:handle-request form) ; Can throw an error if CSRF fails
+
+                        (multiple-value-bind (valid errors)
+                            (cl-forms:validate-form form)
+
+                          (when errors
+                            (format t "Errors: ~A~%" errors))
+
+                          (when valid
+                            (cl-forms:with-form-field-values (username password) form
+                                (cu-sith:login :user username :password password)
+                                (ingle:redirect (get-config :login-redirect))))))
+
+                    (cu-sith:invalid-user (err)
+                        (djula:render-template* "error.html" nil :title "Error" :error err))
+
+                    (cu-sith:invalid-password (err)
+                        (djula:render-template* "error.html" nil :title "Error" :error err)))))))
+
 
 ;; Must be logged in
 (setf (ningle:route *app* "/logout" :method '(:GET :POST))
     (lambda (params)
         (cu-sith:logout)
-        (ingle:redirect "/")))
+        (ingle:redirect (get-config :login-redirect))))
 
 ;; Must be logged out
 (setf (ningle:route *app* "/reset")
