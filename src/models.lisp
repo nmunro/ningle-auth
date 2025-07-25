@@ -25,8 +25,9 @@
 (defparameter +token-purposes+ (list +email-verification+ +password-reset+))
 
 (deftable user (mito-auth:has-secure-password)
-  ((email    :col-type (:varchar 255) :initarg :email    :accessor email)
-   (username :col-type (:varchar 255) :initarg :username :accessor username))
+  ((email    :col-type (:varchar 255) :initarg  :email    :accessor email)
+   (username :col-type (:varchar 255) :initarg  :username :accessor username)
+   (active   :col-type :integer       :initform 0         :accessor active))
   (:unique-keys email username))
 
 (deftable role ()
