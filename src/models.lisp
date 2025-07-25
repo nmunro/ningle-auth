@@ -12,7 +12,6 @@
            #:role
            #:permission
            #:token
-           #:create-super-user
            #:generate-token
            #:is-expired-p
            #:+email-verification+
@@ -86,8 +85,3 @@
            (base-string (format nil "~A~A~A" (username user) expires-at salt))
            (hash (ironclad:byte-array-to-hex-string (ironclad:digest-sequence :sha256 (babel:string-to-octets base-string)))))
         (create-dao 'token :user-id (mito:object-id user) :purpose purpose :token hash :salt salt :expires-at expires-at)))
-
-(defun create-super-user (&key username email password)
-  (let* ((u (create-dao 'ningle-auth/models:user :username username :email email :password password))
-         (r (create-dao 'ningle-auth/models:role :name "admin" :description "Admin")))
-      (create-dao 'ningle-auth/models:permission :user u :role r)))
