@@ -12,6 +12,7 @@
                :envy-ningle
                :mito
                :ningle
+               :local-time
                :cu-sith)
   :components ((:module "src"
                 :components

@@ -90,7 +90,11 @@
                         (djula:render-template* "error.html" nil :title "Error" :error err))
 
                     (cu-sith:invalid-password (err)
-                        (djula:render-template* "error.html" nil :title "Error" :error err)))))))
+                        (djula:render-template* "error.html" nil :title "Error" :error err))
+
+                    (simple-error (csrf-error)
+                        (setf (lack.response:response-status ningle:*response*) 403)
+                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error)))))))
 
 
 ;; Must be logged in
