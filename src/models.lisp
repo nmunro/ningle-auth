@@ -85,7 +85,7 @@
 (defgeneric generate-token (user purpose &key expires-in)
   (:documentation "Generates a token for a user"))
 
-(defmethod generate-token ((user user) purpose &key (expires-in 30))
+(defmethod generate-token ((user user) purpose &key (expires-in 3600))
     (unless (member purpose +token-purposes+ :test #'string=)
       (error "Invalid token purpose: ~A. Allowed: ~A" purpose +token-purposes+))
 

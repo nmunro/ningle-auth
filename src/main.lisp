@@ -51,11 +51,11 @@
                           (when (string/= password password-verify)
                             (error "Passwords do not match"))
 
-                          (ningle-auth/models:generate-token
-                           (mito:create-dao 'ningle-auth/models:user :email email :username username :password password)
-                           ningle-auth/models:+email-verification+)
+                          (let* ((user (mito:create-dao 'ningle-auth/models:user :email email :username username :password password))
+                                 (token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
+                            (format t "Issued token: ~A~%" (ningle-auth/models:token-value token)))
 
-                          (ingle:redirect (concatenate 'string (get-config :mount-path) "/login"))))))
+                          (ingle:redirect "/")))))
 
                 (error (err)
                     (djula:render-template* "error.html" nil :title "Error" :error err))
@@ -116,14 +116,15 @@
         (cond
           ;; token exists but is expired
           ((and token (ningle-auth/models:is-expired-p token))
-            (format t "Token '~A' expired, regenerating!~%" (ningle-auth/models:token-value token))
             (mito:delete-dao token)
-            (format t "New Token: ~A~%" (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
-            (djula:render-template* "ningle-auth/verify.html" nil :title "Verify"))
+            (format t "Token ~A expired, issuing new token: ~A~%"
+                    (ningle-auth/models:token-value token)
+                    (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
+            (djula:render-template* "ningle-auth/verify.html" nil :title "Verify" :token-reissued t))
 
           ;; token does not exist
           ((not token)
-            (format t "Token '~A' does not exist~%" (cdr (assoc "token" params :test #'string=)))
+            (format t "Token ~A does not exist~%" (cdr (assoc "token" params :test #'string=)))
             (djula:render-template* "error.html" nil :title "Error" :error "Token not valid"))
 
           ;; token exists and is valid
@@ -131,8 +132,8 @@
             (mito:delete-dao token)
             (ningle-auth/models:activate user)
             (mito:save-dao user)
-            (format t "Verify user!~%")
-            (ingle:redirect (get-config :login-redirect)))))))
+            (format t "User ~A activated!~%" (ningle-auth/models:username user))
+            (ingle:redirect (concatenate 'string (get-config :mount-path) "/login")))))))
 
 ;; User will have to be logged into access this route
 (setf (ningle:route *app* "/delete" :method :DELETE)

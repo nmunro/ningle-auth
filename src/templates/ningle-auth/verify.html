@@ -4,7 +4,12 @@
 <div class="container">
     <div class="row">
         <div class="col-12">
-            <h1>Verify</h1>
+            <h1>Your account is almost ready!</h1>
+            {% if token-reissued %}
+                <p>Please follow the instructions send to the email used when registering to verify your account!</p>
+            {% else %}
+                <p>This token has expired and a new one has been issued and sent to the email address used when registering.</p>
+            {% endif %}
         </div>
     </div>
 </div>
