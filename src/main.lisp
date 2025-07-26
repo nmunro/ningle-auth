@@ -21,7 +21,7 @@
       *config*))
 
 (cu-sith:setup
-    :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username))
+    :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username :active 1))
     :user-roles (lambda (user) (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user))))))
 
 (djula:add-template-directory (asdf:system-relative-pathname :ningle-auth "src/templates/"))
@@ -51,10 +51,10 @@
                           (when (string/= password password-verify)
                             (error "Passwords do not match"))
 
-                          (mito:create-dao 'ningle-auth/models:user
-                                           :email email
-                                           :username username
-                                           :password password)
+                          (ningle-auth/models:generate-token
+                           (mito:create-dao 'ningle-auth/models:user :email email :username username :password password)
+                           ningle-auth/models:+email-verification+)
+
                           (ingle:redirect (concatenate 'string (get-config :mount-path) "/login"))))))
 
                 (error (err)
@@ -87,10 +87,10 @@
                                 (ingle:redirect (get-config :login-redirect))))))
 
                     (cu-sith:invalid-user (err)
-                        (djula:render-template* "error.html" nil :title "Error" :error err))
+                        (djula:render-template* "error.html" nil :title "Error" :error (format nil "~A, have you verified the account?" (cu-sith:msg err))))
 
                     (cu-sith:invalid-password (err)
-                        (djula:render-template* "error.html" nil :title "Error" :error err))
+                        (djula:render-template* "error.html" nil :title "Error" :error (cu-sith:msg err)))
 
                     (simple-error (csrf-error)
                         (setf (lack.response:response-status ningle:*response*) 403)
@@ -111,7 +111,28 @@
 ;; Must not be fully set up
 (setf (ningle:route *app* "/verify")
     (lambda (params)
-        (djula:render-template* "ningle-auth/verify.html" nil :title "Verify")))
+      (let* ((user (mito:find-dao 'ningle-auth/models:user :username (cdr (assoc "user" params :test #'string=))))
+             (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+email-verification+ :token (cdr (assoc "token" params :test #'string=)))))
+        (cond
+          ;; token exists but is expired
+          ((and token (ningle-auth/models:is-expired-p token))
+            (format t "Token '~A' expired, regenerating!~%" (ningle-auth/models:token-value token))
+            (mito:delete-dao token)
+            (format t "New Token: ~A~%" (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
+            (djula:render-template* "ningle-auth/verify.html" nil :title "Verify"))
+
+          ;; token does not exist
+          ((not token)
+            (format t "Token '~A' does not exist~%" (cdr (assoc "token" params :test #'string=)))
+            (djula:render-template* "error.html" nil :title "Error" :error "Token not valid"))
+
+          ;; token exists and is valid
+          (t
+            (mito:delete-dao token)
+            (ningle-auth/models:activate user)
+            (mito:save-dao user)
+            (format t "Verify user!~%")
+            (ingle:redirect (get-config :login-redirect)))))))
 
 ;; User will have to be logged into access this route
 (setf (ningle:route *app* "/delete" :method :DELETE)

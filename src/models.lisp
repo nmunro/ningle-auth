@@ -12,8 +12,10 @@
            #:role
            #:permission
            #:token
+           #:token-value
            #:generate-token
            #:is-expired-p
+           #:activate
            #:+email-verification+
            #:+password-reset+
            #:+token-purposes+))
@@ -41,12 +43,18 @@
   (:unique-keys (user role)))
 
 (deftable token ()
-  ((user-id    :col-type :integer      :initarg :user-id    :accessor token-user-id)
+  ((user       :col-type user          :references (user id))
    (purpose    :col-type :string       :initarg :purpose    :accessor token-purpose)
    (token      :col-type (:varchar 64) :initarg :token      :accessor token-value)
    (salt       :col-type :binary       :accessor token-salt)
    (expires-at :col-type :timestamp    :accessor token-expires-at))
   (:unique-keys (user-id purpose)))
+
+(defgeneric activate (user)
+  (:documentation "Set the active slot of a user to 1"))
+
+(defmethod activate ((user user))
+  (setf (active user) 1))
 
 (defgeneric is-expired-p (token)
   (:documentation "Determines if a token has expired"))
@@ -77,7 +85,7 @@
 (defgeneric generate-token (user purpose &key expires-in)
   (:documentation "Generates a token for a user"))
 
-(defmethod generate-token ((user user) purpose &key (expires-in 3600))
+(defmethod generate-token ((user user) purpose &key (expires-in 30))
     (unless (member purpose +token-purposes+ :test #'string=)
       (error "Invalid token purpose: ~A. Allowed: ~A" purpose +token-purposes+))
 
@@ -85,4 +93,4 @@
            (expires-at (truncate (+ (get-universal-time) expires-in)))
            (base-string (format nil "~A~A~A" (username user) expires-at salt))
            (hash (ironclad:byte-array-to-hex-string (ironclad:digest-sequence :sha256 (babel:string-to-octets base-string)))))
-        (create-dao 'token :user-id (mito:object-id user) :purpose purpose :token hash :salt salt :expires-at expires-at)))
+        (create-dao 'token :user user :purpose purpose :token hash :salt salt :expires-at expires-at)))
