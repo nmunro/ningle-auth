@@ -2,6 +2,7 @@
   (:use :cl)
   (:export #:register
            #:login
+           #:reset-password
            #:email
            #:username
            #:password
@@ -16,7 +17,7 @@
                                          (clavier:is-a-string)
                                          (clavier:len :min 8)))
 
-(cl-forms:defform register (:id "signup" :csrf-protection t :csrf-field-name "csrftoken")
+(cl-forms:defform register (:id "register" :csrf-protection t :csrf-field-name "csrftoken")
   ((email           :email    :value "" :constraints (list (clavier:valid-email)))
    (username        :string   :value "" :constraints *username-validator*)
    (password        :password :value "" :constraints *password-validator*)
@@ -27,3 +28,7 @@
   ((username :string   :value "")
    (password :password :value "")
    (submit   :submit   :value "Login")))
+
+(cl-forms:defform reset-password (:id "password-reset" :csrf-protection 5 :csrf-field-name "csrftoken")
+  ((email  :string :value "")
+   (submit :submit :value "Reset")))

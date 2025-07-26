@@ -70,7 +70,7 @@
         (let ((form (cl-forms:find-form 'login)))
             (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) "/login"))
             (if (string= "GET" (lack.request:request-method ningle:*request*))
-                (djula:render-template* "ningle-auth/login.html" nil :form form)
+                (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (get-config :mount-path) "/reset"))
                 (handler-case
                     (progn
                         (cl-forms:handle-request form) ; Can throw an error if CSRF fails
@@ -104,9 +104,43 @@
         (ingle:redirect (get-config :login-redirect))))
 
 ;; Must be logged out
-(setf (ningle:route *app* "/reset")
+(setf (ningle:route *app* "/reset" :method '(:GET :POST))
     (lambda (params)
-        (djula:render-template* "ningle-auth/reset.html" nil :title "Reset")))
+        (let ((form (cl-forms:find-form 'reset-password)))
+            (cond
+              ;; Raise unauthorised if user is logged in
+              ((cu-sith:logged-in-p)
+                (setf (lack.response:response-status ningle:*response*) 403)
+                (djula:render-template* "error.html" nil :title "Error" :error "Cannot reset password while logged in"))
+
+              ;; GET: render a form that has an email input
+              ((string= "GET" (lack.request:request-method ningle:*request*))
+               (djula:render-template* "ningle-auth/reset.html" nil :title "Reset GET" :form form))
+
+              ;; POST: accept a username/email and create a password-reset token
+              (t
+                (handler-case
+                    (progn
+                        (cl-forms:handle-request form) ; Can throw an error if CSRF fails
+
+                        (multiple-value-bind (valid errors)
+                            (cl-forms:validate-form form)
+
+                          (when errors
+                            (format t "Errors: ~A~%" errors))
+
+                          (when valid
+                            (cl-forms:with-form-field-values (email) form
+                                ;; attempt to find user with email
+                                (format t "EMail: ~A~%" email)
+                                (let ((user (mito:find-dao 'ningle-auth/models:user :email email)))
+                                  (if user
+                                      (djula:render-template* "ningle-auth/reset.html" nil :title "Reset POST" :form form)
+                                      (djula:render-template* "error.html" nil :title "Error" :error "No user found")))))))
+
+                    (simple-error (csrf-error)
+                        (setf (lack.response:response-status ningle:*response*) 403)
+                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error))))))))
 
 ;; Must not be fully set up
 (setf (ningle:route *app* "/verify")
