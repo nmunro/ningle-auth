@@ -29,7 +29,6 @@
 (setf (ningle:route *app* "/register" :method '(:GET :POST))
     (lambda (params)
         (let ((form (cl-forms:find-form 'register)))
-          (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) "/register"))
           (if (string= "GET" (lack.request:request-method ningle:*request*))
             (djula:render-template* "ningle-auth/register.html" nil :title "Register" :form form)
             (handler-case
@@ -71,7 +70,6 @@
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
     (lambda (params)
         (let ((form (cl-forms:find-form 'login)))
-            (setf (cl-forms::form-action form) (concatenate 'string (get-config :mount-path) "/login"))
             (if (string= "GET" (lack.request:request-method ningle:*request*))
                 (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (get-config :mount-path) "/reset"))
                 (handler-case
