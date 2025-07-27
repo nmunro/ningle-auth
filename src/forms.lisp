@@ -3,8 +3,10 @@
   (:export #:register
            #:login
            #:reset-password
+           #:new-password
            #:email
            #:username
+           #:token
            #:password
            #:password-verify))
 
@@ -32,3 +34,10 @@
 (cl-forms:defform reset-password (:id "password-reset" :csrf-protection 5 :csrf-field-name "csrftoken")
   ((email  :string :value "")
    (submit :submit :value "Reset")))
+
+(cl-forms:defform new-password (:id "new-password" :csrf-protection 5 :csrf-field-name "csrftoken")
+  ((email           :hidden   :value "")
+   (token           :hidden   :value "")
+   (password        :password :value "" :constraints *password-validator*)
+   (password-verify :password :value "" :constraints *password-validator*)
+   (submit          :submit   :value "Reset")))

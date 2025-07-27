@@ -53,9 +53,8 @@
 
                           (let* ((user (mito:create-dao 'ningle-auth/models:user :email email :username username :password password))
                                  (token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
-                            (format t "Issued token: ~A~%" (ningle-auth/models:token-value token)))
-
-                          (ingle:redirect "/")))))
+                            (format t "~A/verify?user=~A&token=~A~%" (get-config :mount-path) (ningle-auth/models:username user) (ningle-auth/models:token-value token))
+                            (ingle:redirect "/"))))))
 
                 (error (err)
                     (djula:render-template* "error.html" nil :title "Error" :error err))
@@ -108,21 +107,17 @@
     (lambda (params)
         (let ((form (cl-forms:find-form 'reset-password)))
             (cond
-              ;; Raise unauthorised if user is logged in
               ((cu-sith:logged-in-p)
                 (setf (lack.response:response-status ningle:*response*) 403)
                 (djula:render-template* "error.html" nil :title "Error" :error "Cannot reset password while logged in"))
 
-              ;; GET: render a form that has an email input
               ((string= "GET" (lack.request:request-method ningle:*request*))
-               (djula:render-template* "ningle-auth/reset.html" nil :title "Reset GET" :form form))
+                (djula:render-template* "ningle-auth/reset.html" nil :title "Reset GET" :form form))
 
-              ;; POST: accept a username/email and create a password-reset token
               (t
                 (handler-case
                     (progn
                         (cl-forms:handle-request form) ; Can throw an error if CSRF fails
-
                         (multiple-value-bind (valid errors)
                             (cl-forms:validate-form form)
 
@@ -131,12 +126,69 @@
 
                           (when valid
                             (cl-forms:with-form-field-values (email) form
-                                ;; attempt to find user with email
-                                (format t "EMail: ~A~%" email)
-                                (let ((user (mito:find-dao 'ningle-auth/models:user :email email)))
+                                (let* ((user (mito:find-dao 'ningle-auth/models:user :email email))
+                                       (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+)))
+                                  (cond
+                                    ((and user token (not (ningle-auth/models:is-expired-p token)))
+                                        (djula:render-template* "error.html" nil :title "Error" :error "There is already a password reset in progress, either continue or wait a while before retrying"))
+
+                                    ((and user token)
+                                        (mito:delete-dao token)
+                                        (format t "Reset url: ~A/reset/process?user=~A&token=~A~%" (get-config :mount-path) (ningle-auth/models:username user) (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
+                                        (ingle:redirect "/"))
+
+                                    (user
+                                        (format t "Reset url: ~A/reset/process?user=~A&token=~A~%" (get-config :mount-path) (ningle-auth/models:username user) (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
+                                        (ingle:redirect "/"))
+
+                                    (t
+                                     (djula:render-template* "error.html" nil :title "Error" :error "No user found"))))))))
+
+                    (simple-error (csrf-error)
+                        (setf (lack.response:response-status ningle:*response*) 403)
+                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error))))))))
+
+(setf (ningle:route *app* "/reset/process" :method '(:GET :POST))
+      (lambda (params)
+        (let* ((form (cl-forms:find-form 'new-password))
+               (user (mito:find-dao 'ningle-auth/models:user :username (cdr (assoc "user" params :test #'string=))))
+               (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+ :token (cdr (assoc "token" params :test #'string=)))))
+          (cond
+            ((and (string= "GET" (lack.request:request-method ningle:*request*)) (or (not token) (ningle-auth/models:is-expired-p token)))
+                (djula:render-template* "error.html" nil :title "Error" :error "Invalid reset token, please try again"))
+
+            ((and (string= "GET" (lack.request:request-method ningle:*request*)) token)
+                (cl-forms:set-field-value form 'ningle-auth/forms:email (ningle-auth/models:email user))
+                (cl-forms:set-field-value form 'ningle-auth/forms:token (ningle-auth/models:token-value token))
+                (djula:render-template* "ningle-auth/reset.html" nil :title "Create a new password" :form form))
+
+            (t
+                (handler-case
+                    (progn
+                        (cl-forms:handle-request form) ; Can throw an error if CSRF fails
+                        (multiple-value-bind (valid errors)
+                            (cl-forms:validate-form form)
+
+                          (when errors
+                            (format t "Errors: ~A~%" errors))
+
+                          (when valid
+                            (cl-forms:with-form-field-values (email token password password-verify) form
+                                (when (string/= password password-verify)
+                                    (error "Passwords do not match"))
+
+                                (let* ((user (mito:find-dao 'ningle-auth/models:user :email email))
+                                       (token (mito:find-dao 'ningle-auth/models:token :user user :token token :purpose ningle-auth/models:+password-reset+)))
                                   (if user
-                                      (djula:render-template* "ningle-auth/reset.html" nil :title "Reset POST" :form form)
+                                      (progn
+                                        (setf (mito-auth:password user) password)
+                                        (mito:save-dao user)
+                                        (mito:delete-dao token)
+                                        (ingle:redirect (concatenate 'string (get-config :mount-path) "/login")))
                                       (djula:render-template* "error.html" nil :title "Error" :error "No user found")))))))
+
+                    (error (err)
+                        (djula:render-template* "error.html" nil :title "Error" :error err))
 
                     (simple-error (csrf-error)
                         (setf (lack.response:response-status ningle:*response*) 403)
@@ -148,22 +200,22 @@
       (let* ((user (mito:find-dao 'ningle-auth/models:user :username (cdr (assoc "user" params :test #'string=))))
              (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+email-verification+ :token (cdr (assoc "token" params :test #'string=)))))
         (cond
-          ;; token exists but is expired
           ((and token (ningle-auth/models:is-expired-p token))
             (mito:delete-dao token)
-            (format t "Token ~A expired, issuing new token: ~A~%"
+            (format t "Token ~A expired, issuing new token: /verify?user=~A&token=~A~%"
                     (ningle-auth/models:token-value token)
+                    (ningle-auth/models:username user)
                     (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
+
             (djula:render-template* "ningle-auth/verify.html" nil :title "Verify" :token-reissued t))
 
-          ;; token does not exist
           ((not token)
             (format t "Token ~A does not exist~%" (cdr (assoc "token" params :test #'string=)))
             (djula:render-template* "error.html" nil :title "Error" :error "Token not valid"))
 
-          ;; token exists and is valid
           (t
             (mito:delete-dao token)
+            (mito:create-dao 'ningle-auth/models:permission :user user :role (mito:find-dao 'ningle-auth/models:role :name "user"))
             (ningle-auth/models:activate user)
             (mito:save-dao user)
             (format t "User ~A activated!~%" (ningle-auth/models:username user))
