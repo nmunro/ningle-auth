@@ -70,8 +70,14 @@
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
     (lambda (params)
         (let ((form (cl-forms:find-form 'login)))
-            (if (string= "GET" (lack.request:request-method ningle:*request*))
-                (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (get-config :mount-path) "/reset"))
+          (cond
+            ((cu-sith:logged-in-p)
+                (ingle:redirect "/"))
+
+            ((string= "GET" (lack.request:request-method ningle:*request*))
+                (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (get-config :mount-path) "/reset")))
+
+            (t
                 (handler-case
                     (progn
                         (cl-forms:handle-request form) ; Can throw an error if CSRF fails
@@ -95,8 +101,7 @@
 
                     (simple-error (csrf-error)
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error)))))))
-
+                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error))))))))
 
 ;; Must be logged in
 (setf (ningle:route *app* "/logout" :method '(:GET :POST))
@@ -110,8 +115,7 @@
         (let ((form (cl-forms:find-form 'reset-password)))
             (cond
               ((cu-sith:logged-in-p)
-                (setf (lack.response:response-status ningle:*response*) 403)
-                (djula:render-template* "error.html" nil :title "Error" :error "Cannot reset password while logged in"))
+                (ingle:redirect "/"))
 
               ((string= "GET" (lack.request:request-method ningle:*request*))
                 (djula:render-template* "ningle-auth/reset.html" nil :title "Reset GET" :form form))
@@ -120,6 +124,7 @@
                 (handler-case
                     (progn
                         (cl-forms:handle-request form) ; Can throw an error if CSRF fails
+
                         (multiple-value-bind (valid errors)
                             (cl-forms:validate-form form)
 
@@ -166,6 +171,9 @@
                (user (mito:find-dao 'ningle-auth/models:user :username (cdr (assoc "user" params :test #'string=))))
                (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+ :token (cdr (assoc "token" params :test #'string=)))))
           (cond
+            ((cu-sith:logged-in-p)
+                (ingle:redirect "/"))
+
             ((and (string= "GET" (lack.request:request-method ningle:*request*)) (or (not token) (ningle-auth/models:is-expired-p token)))
                 (djula:render-template* "error.html" nil :title "Error" :error "Invalid reset token, please try again"))
 
@@ -212,6 +220,9 @@
       (let* ((user (mito:find-dao 'ningle-auth/models:user :username (cdr (assoc "user" params :test #'string=))))
              (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+email-verification+ :token (cdr (assoc "token" params :test #'string=)))))
         (cond
+          ((cu-sith:logged-in-p)
+            (ingle:redirect "/"))
+
           ((and token (ningle-auth/models:is-expired-p token))
             (mito:delete-dao token)
             (let ((new-token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
