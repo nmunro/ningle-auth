@@ -53,7 +53,11 @@
 
                           (let* ((user (mito:create-dao 'ningle-auth/models:user :email email :username username :password password))
                                  (token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
-                            (format t "~A/verify?user=~A&token=~A~%" (get-config :mount-path) (ningle-auth/models:username user) (ningle-auth/models:token-value token))
+                            (format t "Reset url: ~A~A/verify?user=~A&token=~A~%"
+                                            (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
+                                            (get-config :mount-path)
+                                            (ningle-auth/models:username user)
+                                            (ningle-auth/models:token-value token))
                             (ingle:redirect "/"))))))
 
                 (error (err)
@@ -134,11 +138,21 @@
 
                                     ((and user token)
                                         (mito:delete-dao token)
-                                        (format t "Reset url: ~A/reset/process?user=~A&token=~A~%" (get-config :mount-path) (ningle-auth/models:username user) (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
+                                        (let ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
+                                          (format t "Reset url: ~A~A/reset/process?user=~A&token=~A~%"
+                                            (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
+                                            (get-config :mount-path)
+                                            (ningle-auth/models:username user)
+                                            (ningle-auth/models:token-value token)))
                                         (ingle:redirect "/"))
 
                                     (user
-                                        (format t "Reset url: ~A/reset/process?user=~A&token=~A~%" (get-config :mount-path) (ningle-auth/models:username user) (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
+                                        (let ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
+                                          (format t "Reset url: ~A~A/reset/process?user=~A&token=~A~%"
+                                            (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
+                                            (get-config :mount-path)
+                                            (ningle-auth/models:username user)
+                                            (ningle-auth/models:token-value token)))
                                         (ingle:redirect "/"))
 
                                     (t
@@ -202,10 +216,13 @@
         (cond
           ((and token (ningle-auth/models:is-expired-p token))
             (mito:delete-dao token)
-            (format t "Token ~A expired, issuing new token: /verify?user=~A&token=~A~%"
+            (let ((new-token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
+                (format t "Token ~A expired, issuing new token: ~A~A/verify?user=~A&token=~A~%"
+                    (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
+                    (get-config :mount-path)
                     (ningle-auth/models:token-value token)
                     (ningle-auth/models:username user)
-                    (ningle-auth/models:token-value (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
+                    (ningle-auth/models:token-value new-token)))
 
             (djula:render-template* "ningle-auth/verify.html" nil :title "Verify" :token-reissued t))
 
@@ -220,11 +237,6 @@
             (mito:save-dao user)
             (format t "User ~A activated!~%" (ningle-auth/models:username user))
             (ingle:redirect (concatenate 'string (get-config :mount-path) "/login")))))))
-
-;; User will have to be logged into access this route
-(setf (ningle:route *app* "/delete" :method :DELETE)
-    (lambda (params)
-        (djula:render-template* "ningle-auth/delete.html" nil :title "Delete")))
 
 (defmethod ningle:not-found ((app ningle:<app>))
     (declare (ignore app))
