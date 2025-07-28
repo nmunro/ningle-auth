@@ -19,6 +19,10 @@
                                          (clavier:is-a-string)
                                          (clavier:len :min 8)))
 
+(defparameter *token-validator* (list (clavier:not-blank)
+                                      (clavier:is-a-string)
+                                      (clavier:len :min 64 :max 64)))
+
 (cl-forms:defform register (:id "register" :csrf-protection t :csrf-field-name "csrftoken")
   ((email           :email    :value "" :constraints (list (clavier:valid-email)))
    (username        :string   :value "" :constraints *username-validator*)
@@ -36,8 +40,8 @@
    (submit :submit :value "Reset")))
 
 (cl-forms:defform new-password (:id "new-password" :csrf-protection 5 :csrf-field-name "csrftoken")
-  ((email           :hidden   :value "")
-   (token           :hidden   :value "")
+  ((email           :hidden   :value "" :constraints (list (clavier:valid-email)))
+   (token           :hidden   :value "" :constraints *token-validator*)
    (password        :password :value "" :constraints *password-validator*)
    (password-verify :password :value "" :constraints *password-validator*)
    (submit          :submit   :value "Reset")))
