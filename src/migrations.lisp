@@ -15,6 +15,13 @@
   (mito:migrate-table 'ningle-auth/models:role)
   (mito:migrate-table 'ningle-auth/models:permission)
   (mito:migrate-table 'ningle-auth/models:token)
-  (create-dao 'ningle-auth/models:role :name "admin" :description "Admin")
-  (create-dao 'ningle-auth/models:role :name "user" :description "User")
+
+  (let ((admin-role (find-dao 'ningle-auth/models:role :name "admin")))
+    (unless admin-role
+      (create-dao 'ningle-auth/models:role :name "admin" :description "Admin")))
+
+  (let ((user-role (find-dao 'ningle-auth/models:role :name "user")))
+    (unless user-role
+      (create-dao 'ningle-auth/models:role :name "user" :description "User")))
+
   (format t "Migrations complete.~%"))

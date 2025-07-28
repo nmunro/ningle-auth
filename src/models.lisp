@@ -71,7 +71,7 @@
       (t
        (error "Unknown type for token-expires-at: ~S" (type-of expiry))))))
 
-(defmethod initialize-instance :before ((tok token) &rest initargs &key purpose &allow-other-keys)
+(defmethod initialize-instance :before ((token token) &rest initargs &key purpose &allow-other-keys)
   (unless (member purpose +token-purposes+ :test #'string=)
     (error "Invalid token purpose: ~A. Allowed: ~A" purpose +token-purposes+)))
 
