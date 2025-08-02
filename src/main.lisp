@@ -1,24 +1,12 @@
 (defpackage ningle-auth
   (:use :cl :sxql :ningle-auth/forms)
   (:export #:*app*
-           #:*config*
            #:start
-           #:stop
-           #:get-config
-           #:set-config))
+           #:stop))
 
 (in-package ningle-auth)
 
 (defvar *app* (make-instance 'ningle:app))
-(defvar *config* nil)
-
-(defun set-config (config)
-  (setf *config* config))
-
-(defun get-config (&optional (key nil keyp))
-  (if keyp
-      (getf *config* key)
-      *config*))
 
 (cu-sith:setup
     :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username :active 1))
@@ -54,7 +42,7 @@
                                  (token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
                             (format t "Reset url: ~A~A/verify?user=~A&token=~A~%"
                                             (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                                            (get-config :mount-path)
+                                            (envy-ningle:get-config :mount-path)
                                             (ningle-auth/models:username user)
                                             (ningle-auth/models:token-value token))
                             (ingle:redirect "/"))))))
@@ -75,7 +63,7 @@
                 (ingle:redirect "/"))
 
             ((string= "GET" (lack.request:request-method ningle:*request*))
-                (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (get-config :mount-path) "/reset")))
+                (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (envy-ningle:get-config :mount-path) "/reset")))
 
             (t
                 (handler-case
@@ -91,7 +79,7 @@
                           (when valid
                             (cl-forms:with-form-field-values (username password) form
                                 (cu-sith:login :user username :password password)
-                                (ingle:redirect (get-config :login-redirect))))))
+                                (ingle:redirect (envy-ningle:get-config :login-redirect))))))
 
                     (cu-sith:invalid-user (err)
                         (djula:render-template* "error.html" nil :title "Error" :error (format nil "~A, have you verified the account?" (cu-sith:msg err))))
@@ -107,7 +95,7 @@
 (setf (ningle:route *app* "/logout" :method '(:GET :POST))
     (lambda (params)
         (cu-sith:logout)
-        (ingle:redirect (get-config :login-redirect))))
+        (ingle:redirect (envy-ningle:get-config :login-redirect))))
 
 ;; Must be logged out
 (setf (ningle:route *app* "/reset" :method '(:GET :POST))
@@ -144,7 +132,7 @@
                                         (let ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
                                           (format t "Reset url: ~A~A/reset/process?user=~A&token=~A~%"
                                             (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                                            (get-config :mount-path)
+                                            (envy-ningle:get-config :mount-path)
                                             (ningle-auth/models:username user)
                                             (ningle-auth/models:token-value token)))
                                         (ingle:redirect "/"))
@@ -153,7 +141,7 @@
                                         (let ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
                                           (format t "Reset url: ~A~A/reset/process?user=~A&token=~A~%"
                                             (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                                            (get-config :mount-path)
+                                            (envy-ningle:get-config :mount-path)
                                             (ningle-auth/models:username user)
                                             (ningle-auth/models:token-value token)))
                                         (ingle:redirect "/"))
@@ -204,7 +192,7 @@
                                         (setf (mito-auth:password user) password)
                                         (mito:save-dao user)
                                         (mito:delete-dao token)
-                                        (ingle:redirect (concatenate 'string (get-config :mount-path) "/login")))
+                                        (ingle:redirect (concatenate 'string (envy-ningle:get-config :mount-path) "/login")))
                                       (djula:render-template* "error.html" nil :title "Error" :error "No user found")))))))
 
                     (error (err)
@@ -228,7 +216,7 @@
             (let ((new-token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
                 (format t "Token ~A expired, issuing new token: ~A~A/verify?user=~A&token=~A~%"
                     (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                    (get-config :mount-path)
+                    (envy-ningle:get-config :mount-path)
                     (ningle-auth/models:token-value token)
                     (ningle-auth/models:username user)
                     (ningle-auth/models:token-value new-token)))
@@ -245,7 +233,7 @@
             (ningle-auth/models:activate user)
             (mito:save-dao user)
             (format t "User ~A activated!~%" (ningle-auth/models:username user))
-            (ingle:redirect (concatenate 'string (get-config :mount-path) "/login")))))))
+            (ingle:redirect (concatenate 'string (envy-ningle:get-config :mount-path) "/login")))))))
 
 (defmethod ningle:not-found ((app ningle:<app>))
     (declare (ignore app))
