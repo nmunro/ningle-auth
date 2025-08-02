@@ -42,7 +42,7 @@
                                  (token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
                             (format t "Reset url: ~A~A/verify?user=~A&token=~A~%"
                                             (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                                            (envy-ningle:get-config :mount-path)
+                                            (envy-ningle:get-config :auth-mount-path)
                                             (ningle-auth/models:username user)
                                             (ningle-auth/models:token-value token))
                             (ingle:redirect "/"))))))
@@ -63,7 +63,7 @@
                 (ingle:redirect "/"))
 
             ((string= "GET" (lack.request:request-method ningle:*request*))
-                (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (envy-ningle:get-config :mount-path) "/reset")))
+                (djula:render-template* "ningle-auth/login.html" nil :form form :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))
 
             (t
                 (handler-case
@@ -132,7 +132,7 @@
                                         (let ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
                                           (format t "Reset url: ~A~A/reset/process?user=~A&token=~A~%"
                                             (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                                            (envy-ningle:get-config :mount-path)
+                                            (envy-ningle:get-config :auth-mount-path)
                                             (ningle-auth/models:username user)
                                             (ningle-auth/models:token-value token)))
                                         (ingle:redirect "/"))
@@ -141,7 +141,7 @@
                                         (let ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+)))
                                           (format t "Reset url: ~A~A/reset/process?user=~A&token=~A~%"
                                             (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                                            (envy-ningle:get-config :mount-path)
+                                            (envy-ningle:get-config :auth-mount-path)
                                             (ningle-auth/models:username user)
                                             (ningle-auth/models:token-value token)))
                                         (ingle:redirect "/"))
@@ -192,7 +192,7 @@
                                         (setf (mito-auth:password user) password)
                                         (mito:save-dao user)
                                         (mito:delete-dao token)
-                                        (ingle:redirect (concatenate 'string (envy-ningle:get-config :mount-path) "/login")))
+                                        (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/login")))
                                       (djula:render-template* "error.html" nil :title "Error" :error "No user found")))))))
 
                     (error (err)
@@ -216,7 +216,7 @@
             (let ((new-token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+)))
                 (format t "Token ~A expired, issuing new token: ~A~A/verify?user=~A&token=~A~%"
                     (format nil "http://~A:~A" (lack/request:request-server-name ningle:*request*) (lack/request:request-server-port ningle:*request*))
-                    (envy-ningle:get-config :mount-path)
+                    (envy-ningle:get-config :auth-mount-path)
                     (ningle-auth/models:token-value token)
                     (ningle-auth/models:username user)
                     (ningle-auth/models:token-value new-token)))
@@ -233,7 +233,7 @@
             (ningle-auth/models:activate user)
             (mito:save-dao user)
             (format t "User ~A activated!~%" (ningle-auth/models:username user))
-            (ingle:redirect (concatenate 'string (envy-ningle:get-config :mount-path) "/login")))))))
+            (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/login")))))))
 
 (defmethod ningle:not-found ((app ningle:<app>))
     (declare (ignore app))
