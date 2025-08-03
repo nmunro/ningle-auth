@@ -7,8 +7,7 @@
 (setf (config-env-var) "APP_ENV")
 
 (defconfig :common
-  `(:application-root ,(asdf:component-pathname (asdf:find-system :ningle-tutorial-project))
-    :login-redirect ,(uiop:getenv "LOGIN_REDIRECT")))
+  `(:application-root ,(asdf:component-pathname (asdf:find-system :ningle-tutorial-project))))
 
 (defconfig |test|
   `(:debug T
