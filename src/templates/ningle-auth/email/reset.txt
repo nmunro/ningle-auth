@@ -1,0 +1,10 @@
+{% extends "ningle-auth/email/base.txt" %}
+{% block content %}
+Hello, {{ user.username }}!
+
+We have received a password change request for your account, to do so, click this url:
+{{ link|safe }}
+This link will expire in 1 hour.
+
+If this was not you, you can ignore this email, as your password will not be changed without clicking on the above link.
+{% endblock %}

@@ -80,12 +80,12 @@
     (setf (token-salt token) (ironclad:make-random-salt 16)))
 
   (unless (slot-boundp token 'expires-at)
-    (setf (token-expires-at token) (+ (get-universal-time) 3600))))
+    (setf (token-expires-at token) (+ (get-universal-time) (envy-ningle:get-config :token-expiration)))))
 
 (defgeneric generate-token (user purpose &key expires-in)
   (:documentation "Generates a token for a user"))
 
-(defmethod generate-token ((user user) purpose &key (expires-in 3600))
+(defmethod generate-token ((user user) purpose &key (expires-in (envy-ningle:get-config :token-expiration)))
     (unless (member purpose +token-purposes+ :test #'string=)
       (error "Invalid token purpose: ~A. Allowed: ~A" purpose +token-purposes+))
 

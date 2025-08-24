@@ -1,0 +1,10 @@
+{% extends "ningle-auth/email/base.txt" %}
+{% block content %}
+Hello, {{ user.username }}!
+
+Thanks for registering, for security reasons you must verify your account by clicking on this link:
+{{ link|safe }}
+This link will expire in 1 hour.
+
+If this was not you, you can ignore this email, as an account will not be activated without clicking on the above link.
+{% endblock %}

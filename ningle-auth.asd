@@ -13,7 +13,8 @@
                :mito
                :ningle
                :local-time
-               :cu-sith)
+               :cu-sith
+               :ningle-email)
   :components ((:module "src"
                 :components
                 ((:file "config")
