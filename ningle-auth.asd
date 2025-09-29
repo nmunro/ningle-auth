@@ -12,6 +12,7 @@
                :envy-ningle
                :mito
                :ningle
+               :ingle
                :local-time
                :cu-sith
                :ningle-email)
