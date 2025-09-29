@@ -3,11 +3,10 @@
 
 (in-package ningle-auth/config)
 
-(dotenv:load-env (asdf:system-relative-pathname :ningle-auth ".env"))
 (setf (config-env-var) "APP_ENV")
 
 (defconfig :common
-  `(:application-root ,(asdf:component-pathname (asdf:find-system :ningle-tutorial-project))))
+  `(:application-root ,(asdf:component-pathname (asdf:find-system :ningle-auth))))
 
 (defconfig |test|
   `(:debug T
