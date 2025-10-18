@@ -6,7 +6,8 @@
 (setf (config-env-var) "APP_ENV")
 
 (defconfig :common
-  `(:application-root ,(asdf:component-pathname (asdf:find-system :ningle-auth))))
+  `(:application-root ,(asdf:component-pathname (asdf:find-system :ningle-auth))
+    :auth-mount-path "/auth"))
 
 (defconfig |test|
   `(:debug T
