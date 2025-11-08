@@ -1,5 +1,5 @@
 (defsystem "ningle-auth"
-  :version "0.0.1"
+  :version "0.1.0"
   :author "nmunro"
   :license "BSD3-Clause"
   :description ""

@@ -44,7 +44,7 @@
 
 (deftable token ()
   ((user       :col-type user          :references (user id))
-   (purpose    :col-type :string       :initarg :purpose    :accessor token-purpose)
+   (purpose    :col-type :text         :initarg :purpose    :accessor token-purpose)
    (token      :col-type (:varchar 64) :initarg :token      :accessor token-value)
    (salt       :col-type :binary       :accessor token-salt)
    (expires-at :col-type :timestamp    :accessor token-expires-at))
