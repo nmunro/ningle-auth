@@ -8,14 +8,18 @@
            #:updated-at
            #:email
            #:username
-           #:password-hash
+           #:activate
+           #:name
+           #:description
            #:role
+           #:password-hash
            #:permission
+           #:purpose
+           #:salt
            #:token
            #:token-value
            #:generate-token
            #:is-expired-p
-           #:activate
            #:+email-verification+
            #:+password-reset+
            #:+token-purposes+))
@@ -46,8 +50,8 @@
   ((user       :col-type user          :references (user id))
    (purpose    :col-type :text         :initarg :purpose    :accessor token-purpose)
    (token      :col-type (:varchar 64) :initarg :token      :accessor token-value)
-   (salt       :col-type :binary       :accessor token-salt)
-   (expires-at :col-type :timestamp    :accessor token-expires-at))
+   (salt       :col-type :binary       :reader token-salt)
+   (expires-at :col-type :timestamp    :reader token-expires-at))
   (:unique-keys (user-id purpose)))
 
 (defgeneric activate (user)
