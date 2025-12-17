@@ -35,11 +35,11 @@
    (password :password :value "")
    (submit   :submit   :value "Login")))
 
-(cl-forms:defform reset-password (:id "password-reset" :csrf-protection 5 :csrf-field-name "csrftoken")
+(cl-forms:defform reset-password (:id "password-reset" :csrf-protection t :csrf-field-name "csrftoken")
   ((email  :string :value "")
    (submit :submit :value "Reset")))
 
-(cl-forms:defform new-password (:id "new-password" :csrf-protection 5 :csrf-field-name "csrftoken")
+(cl-forms:defform new-password (:id "new-password" :csrf-protection t :csrf-field-name "csrftoken")
   ((email           :hidden   :value "" :constraints (list (clavier:valid-email)))
    (token           :hidden   :value "" :constraints *token-validator*)
    (password        :password :value "" :constraints *password-validator*)
