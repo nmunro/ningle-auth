@@ -6,8 +6,10 @@
            #:id
            #:created-at
            #:updated-at
+           #:expires-at
            #:email
            #:username
+           #:active
            #:activate
            #:name
            #:description
@@ -17,7 +19,7 @@
            #:purpose
            #:salt
            #:token
-           #:token-value
+           #:value
            #:generate-token
            #:is-expired-p
            #:+email-verification+
@@ -48,10 +50,10 @@
 
 (deftable token ()
   ((user       :col-type user          :references (user id))
-   (purpose    :col-type :text         :initarg :purpose    :accessor token-purpose)
-   (token      :col-type (:varchar 64) :initarg :token      :accessor token-value)
-   (salt       :col-type :binary       :reader token-salt)
-   (expires-at :col-type :timestamp    :reader token-expires-at))
+   (purpose    :col-type :text         :initarg :purpose :accessor purpose)
+   (token      :col-type (:varchar 64) :initarg :token   :accessor value)
+   (salt       :col-type :binary       :reader salt)
+   (expires-at :col-type :timestamp    :reader expires-at))
   (:unique-keys (user-id purpose)))
 
 (defgeneric activate (user)
@@ -64,7 +66,7 @@
   (:documentation "Determines if a token has expired"))
 
 (defmethod is-expired-p ((token token))
-  (let ((expiry (token-expires-at token)))
+  (let ((expiry (expires-at token)))
     (typecase expiry
       (local-time:timestamp
        (> (get-universal-time) (local-time:timestamp-to-universal expiry)))
@@ -81,10 +83,10 @@
 
 (defmethod initialize-instance :after ((token token) &rest initargs &key &allow-other-keys)
   (unless (slot-boundp token 'salt)
-    (setf (token-salt token) (ironclad:make-random-salt 16)))
+    (setf (salt token) (ironclad:make-random-salt 16)))
 
   (unless (slot-boundp token 'expires-at)
-    (setf (token-expires-at token) (+ (get-universal-time) (envy-ningle:get-config :token-expiration)))))
+    (setf (expires-at token) (+ (get-universal-time) (envy-ningle:get-config :token-expiration)))))
 
 (defgeneric generate-token (user purpose &key expires-in)
   (:documentation "Generates a token for a user"))

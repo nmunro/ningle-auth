@@ -1,5 +1,5 @@
 (defsystem "ningle-auth"
-  :version "0.1.1"
+  :version "0.2.0"
   :author "nmunro"
   :license "BSD3-Clause"
   :description ""
@@ -32,6 +32,9 @@
                :rove)
   :components ((:module "tests"
                 :components
-                ((:file "main"))))
+                ((:file "test-helpers")
+                 (:file "test-models" :depends-on ("test-helpers"))
+                 (:file "test-forms" :depends-on ("test-helpers"))
+                 (:file "test-routes" :depends-on ("test-helpers")))))
   :description "Test system for ningle-auth"
   :perform (test-op (op c) (symbol-call :rove :run c)))

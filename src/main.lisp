@@ -6,7 +6,7 @@
 
 (in-package ningle-auth)
 
-(defvar *app* (make-instance 'ningle:app))
+(defvar *app* (make-instance 'ningle:<app>))
 
 (cu-sith:setup
     :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username :active 1))
@@ -23,11 +23,11 @@
 
 (defun build-activation-link (user token)
   (let ((host (build-url-root :path (envy-ningle:get-config :auth-mount-path))))
-    (format nil "~A/verify?user=~A&token=~A~%" host (ningle-auth/models:username user) (ningle-auth/models:token-value token))))
+    (format nil "~A/verify?user=~A&token=~A~%" host (ningle-auth/models:username user) (ningle-auth/models:value token))))
 
 (defun build-reset-link (user token)
   (let ((host (build-url-root :path (envy-ningle:get-config :auth-mount-path))))
-    (format nil "~A/reset/process?user=~A&token=~A~%" host (ningle-auth/models:username user) (ningle-auth/models:token-value token))))
+    (format nil "~A/reset/process?user=~A&token=~A~%" host (ningle-auth/models:username user) (ningle-auth/models:value token))))
 
 (setf (ningle:route *app* "/register" :method '(:GET :POST))
     (lambda (params)
@@ -182,7 +182,7 @@
 
             ((and (string= "GET" (lack.request:request-method ningle:*request*)) token)
                 (cl-forms:set-field-value form 'ningle-auth/forms:email (ningle-auth/models:email user))
-                (cl-forms:set-field-value form 'ningle-auth/forms:token (ningle-auth/models:token-value token))
+                (cl-forms:set-field-value form 'ningle-auth/forms:token (ningle-auth/models:value token))
                 (djula:render-template* "ningle-auth/reset.html" nil :title "Create a new password" :form form))
 
             (t
