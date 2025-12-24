@@ -11,5 +11,7 @@
 
 (defconfig |test|
   `(:debug T
+    :token-expiration 3600
+    :email-backend :string
     :middleware ((:session)
                  (:mito (:sqlite3 :database-name ,(uiop:getenv "SQLITE_DB_NAME"))))))
