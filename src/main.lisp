@@ -109,6 +109,7 @@
 ;; Must be logged in
 (setf (ningle:route *app* "/logout" :method '(:GET :POST))
     (lambda (params)
+        (declare (ignore params))
         (cu-sith:logout)
         (ingle:redirect (envy-ningle:get-config :login-redirect))))
 
