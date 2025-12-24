@@ -19,8 +19,9 @@
   :components ((:module "src"
                 :components
                 ((:file "config")
+                 (:file "token-registry")
                  (:file "forms")
-                 (:file "models")
+                 (:file "models" :depends-on ("token-registry"))
                  (:file "migrations")
                  (:file "main"))))
   :in-order-to ((test-op (test-op "ningle-auth/tests"))))
