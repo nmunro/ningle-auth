@@ -31,6 +31,7 @@
 
 (setf (ningle:route *app* "/register" :method '(:GET :POST))
     (lambda (params)
+        (declare (ignore params))
         (let ((form (cl-forms:find-form 'register)))
           (if (string= "GET" (lack.request:request-method ningle:*request*))
             (djula:render-template* "ningle-auth/register.html" nil :title "Register" :form form)
@@ -72,6 +73,7 @@
 ;; Must be logged out
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
     (lambda (params)
+        (declare (ignore params))
         (let ((form (cl-forms:find-form 'login)))
           (cond
             ((cu-sith:logged-in-p)
@@ -116,6 +118,7 @@
 ;; Must be logged out
 (setf (ningle:route *app* "/reset" :method '(:GET :POST))
     (lambda (params)
+        (declare (ignore params))
         (let ((form (cl-forms:find-form 'reset-password)))
             (cond
               ((cu-sith:logged-in-p)
