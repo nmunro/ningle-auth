@@ -1,0 +1,52 @@
+("quicklisp" .
+ (:class qlot/source/dist:source-dist
+  :initargs (:distribution "https://beta.quicklisp.org/dist/quicklisp.txt" :%version :latest)
+  :version "2026-01-01"))
+("cl-dotenv" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2018-10-18"))
+("clack" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2025-06-22"))
+("djula" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2026-01-01"))
+("cl-forms" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2025-06-22"))
+("envy-ningle" .
+ (:class qlot/source/github:source-github
+  :initargs (:repos "nmunro/envy-ningle" :ref nil :branch nil :tag nil)
+  :version "github-96d337b412509b57c87a93ea8d43af5274e14473"))
+("mito" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2026-01-01"))
+("ningle" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2024-10-12"))
+("ingle" .
+ (:class qlot/source/git:source-git
+  :initargs (:remote-url "https://codeberg.org/martianh/ingle.git" :branch "main")
+  :version "git-8ee4e4cb1a14b4cb5564cf6fa265ef53eccf5296"))
+("local-time" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2026-01-01"))
+("cl-trivial-clock" .
+ (:class qlot/source/ql:source-ql
+  :initargs (:%version :latest)
+  :version "ql-2026-01-01"))
+("cu-sith" .
+ (:class qlot/source/github:source-github
+  :initargs (:repos "nmunro/cu-sith" :ref nil :branch nil :tag nil)
+  :version "github-8d9096317b3f6868e9da7a74330a5f36c9214723"))
+("ningle-email" .
+ (:class qlot/source/github:source-github
+  :initargs (:repos "nmunro/ningle-email" :ref nil :branch nil :tag nil)
+  :version "github-dc0776eedc838e941bb91b653911fdf68bf01e6c"))
