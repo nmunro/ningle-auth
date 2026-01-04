@@ -1,6 +1,6 @@
 # ningle-auth
 
-**Version:** 0.2.0
+**Version:** 0.3.0
 **Author:** nmunro
 **License:** BSD3-Clause
 
@@ -30,6 +30,7 @@ A complete authentication system for [Ningle](https://github.com/fukamachi/ningl
 - [ningle-email](https://github.com/nmunro/ningle-email) - Email delivery
 - [ironclad](https://github.com/sharplispers/ironclad) - Cryptography
 - [local-time](https://github.com/dlowe-net/local-time) - Time handling
+- [cl-trivial-clock](https://github.com/ak-coram/cl-trivial-clock) - **Indirect dependency** (required by cl-smtp → frugal-uuid, explicit due to qlot limitation with GitHub packages)
 
 ## Installation
 
@@ -67,7 +68,7 @@ Create a config package in your application:
 (setf (config-env-var) "APP_ENV")
 
 (defconfig :common
-  '(:auth-mount-path "/auth"        ; Base path for auth routes (required)
+  '(:auth-mount-path "/auth"         ; Base path for auth routes (required)
     :token-expiration 3600           ; Token lifetime in seconds (default: 1 hour)
     :login-redirect "/"              ; Redirect after successful login
     :email-backend :smtp             ; Email backend (:smtp, :sendmail, :string)
@@ -313,7 +314,7 @@ All forms include CSRF protection with a `csrftoken` field.
 
 ## Token Registry
 
-**New in 0.2.0:** Extensible token purpose registration system.
+**New in 0.3.0:** Extensible token purpose registration system.
 
 ### Built-in Token Purposes
 
@@ -330,12 +331,12 @@ All forms include CSRF protection with a `csrftoken` field.
 (register-token-purpose "magic-link")
 (register-token-purpose "account-deletion")
 
-;; List all registered purposes
-(list-token-purposes)
-;; => ("email-verification" "password-reset" "two-factor-auth" "magic-link" "account-deletion")
+;; Register a prefix-based token purpose
+(register-token-purpose "api-key-" :prefix t)
 
 ;; Check if a purpose is valid
-(token-purpose-valid-p "two-factor-auth")  ;; => T
+(token-purpose-valid-p "two-factor-auth")  ;; => T (exact match)
+(token-purpose-valid-p "api-key-read")     ;; => T (prefix match)
 (token-purpose-valid-p "invalid")          ;; => NIL
 ```
 
@@ -354,9 +355,8 @@ All forms include CSRF protection with a `csrftoken` field.
 
 **Package:** `ningle-auth/token-registry`
 
-- `(register-token-purpose purpose)` - Register a new token purpose (string)
-- `(token-purpose-valid-p purpose)` - Check if purpose is registered
-- `(list-token-purposes)` - Return list of all registered purposes
+- `(register-token-purpose purpose &key prefix)` - Register a new token purpose (string). Use `:prefix t` for prefix-based matching.
+- `(token-purpose-valid-p purpose)` - Check if purpose is registered (supports exact match and prefix matching)
 - `+email-verification+` - Constant for built-in email verification purpose
 - `+password-reset+` - Constant for built-in password reset purpose
 
@@ -367,19 +367,6 @@ Run the test suite:
 ```lisp
 (asdf:test-system :ningle-auth)
 ```
-
-**Test Coverage:**
-- 51 test functions
-- 91 assertions
-- Model tests (36 tests) - User, Role, Permission, Token
-- Form tests (8 tests) - Validation for all forms
-- Route tests (7 tests) - Route registration verification
-
-**Test Features:**
-- In-memory SQLite database for fast execution
-- Isolated test environment with fixtures
-- Email backend testing via `:string` backend
-- Database setup/teardown hooks
 
 ## Integration Example
 
@@ -454,7 +441,7 @@ Migrations are managed by Mito:
 - Constants: `+email-verification+`, `+password-reset+`
 
 **Token Registry Package:** `ningle-auth/token-registry`
-- Functions: `register-token-purpose`, `token-purpose-valid-p`, `list-token-purposes`
+- Functions: `register-token-purpose`, `token-purpose-valid-p`
 - Constants: `+email-verification+`, `+password-reset+`
 
 **Forms Package:** `ningle-auth/forms`

@@ -1,0 +1,12 @@
+ql cl-dotenv
+ql clack
+ql djula
+ql cl-forms
+github nmunro/envy-ningle
+ql mito
+ql ningle
+git ingle https://codeberg.org/martianh/ingle.git :branch main
+ql local-time
+ql cl-trivial-clock
+github nmunro/cu-sith
+github nmunro/ningle-email
