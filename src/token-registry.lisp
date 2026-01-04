@@ -1,9 +1,8 @@
 (defpackage ningle-auth/token-registry
   (:use :cl)
-  (:export #:+token-purposes+
+  (:export #:+token-purpose-registry+
            #:register-token-purpose
            #:token-purpose-valid-p
-           #:list-token-purposes
            #:+email-verification+
            #:+password-reset+))
 
@@ -15,22 +14,24 @@
 (defparameter +password-reset+ "password-reset"
   "Token purpose for password reset requests")
 
-(defparameter +token-purposes+ (make-hash-table :test #'equal)
-  "Registry of valid token purposes")
+(defparameter +token-purpose-registry+ (make-hash-table :test #'equal)
+  "Registry of valid token purposes as strings")
 
-(defun register-token-purpose (purpose)
+(defparameter +token-purpose-predicates+ nil 
+  "Registry of valid token purposes as functions")
+
+(defun register-token-purpose (purpose &key prefix)
   "Register a token purpose as valid. Returns PURPOSE."
   (check-type purpose string)
-  (setf (gethash purpose +token-purposes+) t)
-  purpose)
+  (check-type prefix boolean)
+  (if prefix
+      (push (lambda (p) (str:starts-with-p purpose p)) +token-purpose-predicates+)
+      (setf (gethash purpose +token-purpose-registry+) t)))
 
 (defun token-purpose-valid-p (purpose)
   "Check if PURPOSE is a registered token purpose."
-  (and (stringp purpose) (gethash purpose +token-purposes+)))
-
-(defun list-token-purposes ()
-  "Return a list of all registered token purposes."
-  (loop for key being the hash-keys of +token-purposes+ collect key))
+  (or (gethash purpose +token-purpose-registry+)
+      (some (lambda (pred) (funcall pred purpose)) +token-purpose-predicates+)))
 
 ;;; Register built-in token purposes at load time
 (eval-when (:load-toplevel :execute)

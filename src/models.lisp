@@ -4,7 +4,6 @@
                 :password-hash)
   (:import-from :ningle-auth/token-registry
                 #:token-purpose-valid-p
-                #:list-token-purposes
                 #:+email-verification+
                 #:+password-reset+)
   (:export #:user
@@ -81,8 +80,7 @@
 (defmethod initialize-instance :before ((token token) &rest initargs &key purpose &allow-other-keys)
   (declare (ignore initargs))
   (unless (token-purpose-valid-p purpose)
-    (error "Invalid token purpose: ~A. Registered purposes: ~{~A~^, ~}"
-           purpose (list-token-purposes))))
+    (error "Invalid token purpose: ~A. Use register-token-purpose to register new purposes." purpose)))
 
 (defmethod initialize-instance :after ((token token) &rest initargs &key &allow-other-keys)
   (declare (ignore initargs))
@@ -97,8 +95,7 @@
 
 (defmethod generate-token ((user user) purpose &key (expires-in (envy-ningle:get-config :token-expiration)))
     (unless (token-purpose-valid-p purpose)
-      (error "Invalid token purpose: ~A. Registered purposes: ~{~A~^, ~}"
-             purpose (list-token-purposes)))
+      (error "Invalid token purpose: ~A. Use register-token-purpose to register new purposes." purpose))
 
     (let* ((salt (ironclad:make-random-salt 16))
            (expires-at (truncate (+ (get-universal-time) expires-in)))

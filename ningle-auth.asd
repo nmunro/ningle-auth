@@ -1,5 +1,5 @@
 (defsystem "ningle-auth"
-  :version "0.2.0"
+  :version "0.3.0"
   :author "nmunro"
   :license "BSD3-Clause"
   :description ""
@@ -36,6 +36,7 @@
                 ((:file "test-helpers")
                  (:file "test-models" :depends-on ("test-helpers"))
                  (:file "test-forms" :depends-on ("test-helpers"))
-                 (:file "test-routes" :depends-on ("test-helpers")))))
+                 (:file "test-routes" :depends-on ("test-helpers"))
+                 (:file "test-token-registry"))))
   :description "Test system for ningle-auth"
   :perform (test-op (op c) (symbol-call :rove :run c)))
