@@ -2,7 +2,7 @@
   :version "0.3.0"
   :author "nmunro"
   :license "BSD3-Clause"
-  :description ""
+  :description "An authentication app for Ningle based projects"
   :depends-on (:cl-dotenv
                :clack
                :djula

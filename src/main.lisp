@@ -10,7 +10,8 @@
 
 (cu-sith:setup
     :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username :active 1))
-    :user-roles (lambda (user) (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user))))))
+    :user-roles (lambda (user) (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user)))))
+    :login-redirect (envy-ningle:get-config :login-redirect))
 
 (djula:add-template-directory (asdf:system-relative-pathname :ningle-auth "src/templates/"))
 
