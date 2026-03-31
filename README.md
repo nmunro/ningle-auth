@@ -20,6 +20,7 @@ A complete authentication system for [Ningle](https://github.com/fukamachi/ningl
 ## Dependencies
 
 - [ningle](https://github.com/fukamachi/ningle) - Web framework
+- [ingle](https://github.com/fukamachi/ingle) - Ningle utilities (redirects, param helpers)
 - [clack](https://github.com/fukamachi/clack) - Web server interface
 - [mito](https://github.com/fukamachi/mito) - ORM and database migrations
 - [mito-auth](https://github.com/fukamachi/mito-auth) - Password hashing
@@ -57,7 +58,23 @@ Optional environment variables:
 
 ### Configuration Options
 
-Create a config package in your application:
+ningle-auth reads configuration via `envy-ningle:get-config` at runtime. Your application must provide a config package using [envy](https://github.com/fukamachi/envy) and [envy-ningle](https://github.com/nmunro/envy-ningle). The following keys are required:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `:auth-mount-path` | string | Path where auth routes are mounted (e.g. `"/auth"`) |
+| `:login-redirect` | string | Where unauthenticated users are sent (e.g. `"/auth/login"`) |
+| `:login-success-redirect` | string | Where to redirect after successful login (e.g. `"/"`) |
+| `:token-expiration` | integer | Token lifetime in seconds (e.g. `3600` for 1 hour) |
+| `:project-name` | string | Used in email subjects (e.g. `"My App"`) |
+| `:email-backend` | keyword | Email backend — `:console`, `:smtp`, or `:sendmail` |
+| `:email-default-from` | string | From address for outgoing emails |
+| `:email-reply-to` | string | Reply-to address for outgoing emails |
+| `:email-admins` | list | List of admin email addresses |
+
+The `:invite-token-expiration` key is also expected if you register invite-style token purposes.
+
+Example config package:
 
 ```lisp
 (defpackage your-app/config
@@ -68,29 +85,25 @@ Create a config package in your application:
 (setf (config-env-var) "APP_ENV")
 
 (defconfig :common
-  '(:auth-mount-path "/auth"         ; Base path for auth routes (required)
-    :token-expiration 3600           ; Token lifetime in seconds (default: 1 hour)
-    :login-redirect "/"              ; Redirect after successful login
-    :email-backend :smtp             ; Email backend (:smtp, :sendmail, :string)
-    :smtp-host "smtp.example.com"
-    :smtp-port 587
-    :smtp-username "user@example.com"
-    :smtp-password "password"))
+  '(:auth-mount-path "/auth"
+    :login-redirect "/auth/login"        ; Where unauthenticated users are sent
+    :login-success-redirect "/"          ; Where to go after successful login
+    :token-expiration 3600
+    :project-name "My App"
+    :email-admins ("admin@example.com")))
 
 (defconfig |development|
   '(:debug T
-    :middleware ((:session :state (:file :directory "/tmp"))
-                 (:mito (:sqlite3 :database-name "dev.db")))))
+    :email-backend :console
+    :email-default-from "noreply@example.com"
+    :email-reply-to "noreply@example.com"))
 
 (defconfig |production|
   '(:debug NIL
-    :middleware ((:session)
-                 (:mito (:postgres :database-name "myapp"
-                                   :username "dbuser"
-                                   :password "dbpass")))))
+    :email-backend :smtp
+    :email-default-from "noreply@example.com"
+    :email-reply-to "noreply@example.com"))
 ```
-
-**Important:** The `:auth-mount-path` configuration is required and determines where authentication routes are mounted.
 
 ## Database Models
 
@@ -214,7 +227,7 @@ User authentication.
 2. System verifies username and password
 3. Checks user is active
 4. Creates session via cu-sith
-5. Redirects to configured `:login-redirect` path
+5. Redirects to configured `:login-success-redirect` path
 
 **Errors:**
 - Invalid username (suggests checking verification)
@@ -372,67 +385,71 @@ Run the test suite:
 
 ```lisp
 (defpackage myapp
-  (:use :cl))
+  (:use :cl)
+  (:import-from :ningle-auth :login-required))
 
 (in-package :myapp)
 
-;; Set up environment
-(setf (uiop:getenv "ENVY_CONFIG_PACKAGE") "myapp/config")
-(setf (uiop:getenv "APP_ENV") "development")
-
 ;; Create your main app
-(defvar *main-app* (make-instance 'ningle:<app>))
+(defvar *app* (make-instance 'ningle:<app>))
 
-;; Mount ningle-auth at /auth
-(setf (ningle:route *main-app* "/auth*")
-      ningle-auth:*app*)
+;; Initialise ningle-auth (call before defining routes)
+(ningle-auth:setup)
 
 ;; Your application routes
-(setf (ningle:route *main-app* "/")
+(setf (ningle:route *app* "/")
       (lambda (params)
+        (declare (ignore params))
         (if (cu-sith:logged-in-p)
-            (format nil "Welcome, ~A!" (cu-sith:username (cu-sith:get-user)))
-            (format nil "Please <a href='/auth/login'>login</a> or <a href='/auth/register'>register</a>"))))
+            (let ((user (cu-sith:user)))
+              (format nil "Welcome, ~A!" (ningle-auth/models:username user)))
+            "Please <a href='/auth/login'>login</a> or <a href='/auth/register'>register</a>")))
 
-;; Protected route example
-(setf (ningle:route *main-app* "/dashboard")
-      (lambda (params)
-        (if (cu-sith:logged-in-p)
-            (format nil "Dashboard for ~A" (cu-sith:username (cu-sith:get-user)))
-            (ingle:redirect "/auth/login"))))
+;; Protected route — redirects to :login-redirect if not authenticated
+(setf (ningle:route *app* "/dashboard")
+      (login-required
+        (lambda (params)
+          (declare (ignore params))
+          (let ((user (cu-sith:user)))
+            (format nil "Dashboard for ~A" (ningle-auth/models:username user))))))
 
-;; Start the server
-(defun start-server ()
-  (ningle-auth/migrations:migrate)  ; Run migrations
-  (clack:clackup
-   (lack.builder:builder
-    (envy-ningle:build-middleware :myapp/config *main-app*))
-   :server :woo
-   :port 8000))
+;; Build the middleware stack — this must be the last form evaluated,
+;; as envy-ningle:build-middleware returns the composed lack app that
+;; clackup (or clack:clackup) will serve.
+(envy-ningle:build-middleware :myapp/config *app*)
 ```
+
+`envy-ningle:build-middleware` mounts `ningle-auth:*app*` at `:auth-mount-path` via lack's `:mount` middleware. The return value of the last form is what clackup uses as the application.
 
 ## Database Migrations
 
-Migrations are managed by Mito:
-
-```lisp
-;; Run migrations
-(ningle-auth/migrations:migrate)
-
-;; In your application startup
-(defun initialize-db ()
-  (mito:connect-toplevel :postgres :database-name "myapp"
-                                   :username "dbuser"
-                                   :password "dbpass")
-  (ningle-auth/migrations:migrate))
-```
+ningle-auth ships migration files alongside the library. Migrations are managed by [mito](https://github.com/fukamachi/mito) via your application's database connection — run them with your application's migration tooling after connecting to the database.
 
 ## Exported Symbols
 
 **Main Package:** `ningle-auth`
-- `*app*` - The Ningle application instance
-- `start` - Start the authentication server (standalone)
-- `stop` - Stop the authentication server
+- `*app*` - The Ningle application instance (mount this via `:mount` middleware)
+- `setup` - Initialise ningle-auth; must be called before serving requests (see below)
+- `login-required` - Middleware wrapper that redirects unauthenticated requests to `:login-redirect`
+
+### `setup` keyword arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `:user` | `ningle-auth/models:user` | The user model class to use |
+| `:user-p` | internal `get-user` | Function `(username) → user-or-nil` for looking up users |
+| `:default-roles` | `("user")` | Role names automatically assigned on email verification |
+| `:extra-token-purposes` | `nil` | Additional token purposes to register; list of `(purpose &key prefix)` lists |
+
+Example with all options:
+
+```lisp
+(ningle-auth:setup
+  :user 'myapp/models:user
+  :default-roles '("member")
+  :extra-token-purposes '(("invite:" :prefix t)
+                          ("magic-link")))
+```
 
 **Models Package:** `ningle-auth/models`
 - Model classes: `user`, `role`, `permission`, `token`

@@ -1,34 +1,34 @@
 (defpackage ningle-auth
   (:use :cl :sxql :ningle-auth/forms)
   (:export #:*app*
-           #:start
-           #:stop))
+           #:setup
+           #:login-required))
 
 (in-package ningle-auth)
 
 (defvar *app* (make-instance 'ningle:<app>))
+(defparameter *user* nil)
 
-(cu-sith:setup
-    :user-p (lambda (username) (mito:find-dao 'ningle-auth/models:user :username username :active 1))
-    :user-roles (lambda (user) (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user)))))
-    :login-redirect (envy-ningle:get-config :login-redirect))
+(defun login-required (controller)
+  (lambda (params)
+    (if (cu-sith:logged-in-p)
+        (funcall controller params)
+        (ingle:redirect (format nil "~A?next=~A" (envy-ningle:get-config :login-redirect) (lack/request:request-uri ningle:*request*))))))
 
-(djula:add-template-directory (asdf:system-relative-pathname :ningle-auth "src/templates/"))
+(defun get-user (username)
+  (mito:find-dao 'ningle-auth/models:user :username username :active 1))
 
-(defun build-url-root (&key (path ""))
-  (format nil "~A://~A:~A~A"
-    (lack/request:request-uri-scheme ningle:*request*)
-    (lack/request:request-server-name ningle:*request*)
-    (lack/request:request-server-port ningle:*request*)
-    path))
+(defun get-permissions (user)
+  (mito:select-dao 'ningle-auth/models:permission (where (:= :user_id (mito:object-id user)))))
 
-(defun build-activation-link (user token)
-  (let ((host (build-url-root :path (envy-ningle:get-config :auth-mount-path))))
-    (format nil "~A/verify?user=~A&token=~A~%" host (ningle-auth/models:username user) (ningle-auth/models:value token))))
+(defun setup (&key (user 'ningle-auth/models:user) (user-p #'get-user) (default-roles '("user")) (extra-token-purposes nil))
+  (setf *user* user)
+  (setf ningle-auth/models:*default-roles* default-roles)
+  (cu-sith:setup :user-p user-p :user-permissions #'get-permissions)
+  (djula:add-template-directory (asdf:system-relative-pathname :ningle-auth "src/templates/"))
 
-(defun build-reset-link (user token)
-  (let ((host (build-url-root :path (envy-ningle:get-config :auth-mount-path))))
-    (format nil "~A/reset/process?user=~A&token=~A~%" host (ningle-auth/models:username user) (ningle-auth/models:value token))))
+  (dolist (token extra-token-purposes)
+    (apply #'ningle-auth/token-registry:register-token-purpose token)))
 
 (setf (ningle:route *app* "/register" :method '(:GET :POST))
     (lambda (params)
@@ -47,21 +47,14 @@
 
                       (when valid
                         (cl-forms:with-form-field-values (email username password password-verify) form
-                          (when (mito:select-dao 'ningle-auth/models:user
-                                 (where (:or (:= :username username)
-                                             (:= :email email))))
+                          (when (mito:select-dao *user* (where (:or (:= :username username) (:= :email email))))
                             (error "Either username or email is already registered"))
 
                           (when (string/= password password-verify)
                             (error "Passwords do not match"))
 
-                          (let* ((user (mito:create-dao 'ningle-auth/models:user :email email :username username :password password))
-                                 (token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+))
-                                 (link (build-activation-link user token))
-                                 (subject (format nil "Ningle Tutorial Project registration for ~A" user))
-                                 (template "ningle-auth/email/register.txt")
-                                 (content (djula:render-template* template nil :user user :link link)))
-                            (ningle-email:send-mail subject content email)
+                          (let ((user (mito:create-dao *user* :email email :username username :password password)))
+                            (ningle-auth/models:on-register user)
                             (ingle:redirect "/"))))))
 
                 (error (err)
@@ -74,8 +67,8 @@
 ;; Must be logged out
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
     (lambda (params)
-        (declare (ignore params))
-        (let ((form (cl-forms:find-form 'login)))
+      (let ((form (cl-forms:find-form 'login))
+            (next-url (ingle:get-param "next" params)))
           (cond
             ((cu-sith:logged-in-p)
                 (ingle:redirect "/"))
@@ -97,7 +90,7 @@
                           (when valid
                             (cl-forms:with-form-field-values (username password) form
                                 (cu-sith:login :user username :password password)
-                                (ingle:redirect (envy-ningle:get-config :login-redirect))))))
+                                (ingle:redirect (or next-url (envy-ningle:get-config :login-success-redirect)))))))
 
                     (cu-sith:invalid-user (err)
                         (djula:render-template* "error.html" nil :title "Error" :error (format nil "~A, have you verified the account?" (cu-sith:msg err))))
@@ -110,7 +103,7 @@
                         (djula:render-template* "error.html" nil :title "Error" :error csrf-error))))))))
 
 ;; Must be logged in
-(setf (ningle:route *app* "/logout" :method '(:GET :POST))
+(setf (ningle:route *app* "/logout" :method :GET)
     (lambda (params)
         (declare (ignore params))
         (cu-sith:logout)
@@ -141,30 +134,16 @@
 
                           (when valid
                             (cl-forms:with-form-field-values (email) form
-                                (let* ((user (mito:find-dao 'ningle-auth/models:user :email email))
+                                (let* ((user (mito:find-dao *user* :email email))
                                        (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+)))
                                   (cond
                                     ((and user token (not (ningle-auth/models:is-expired-p token)))
                                         (djula:render-template* "error.html" nil :title "Error" :error "There is already a password reset in progress, either continue or wait a while before retrying"))
 
-                                    ((and user token)
-                                        (mito:delete-dao token)
-                                        (let* ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+))
-                                               (link (build-reset-link user token))
-                                               (subject (format nil "Ningle Tutorial Project password reset for ~A" user))
-                                               (template "ningle-auth/email/reset.txt")
-                                               (content (djula:render-template* template nil :user user :link link)))
-                                            (ningle-email:send-mail subject content email)
-                                            (ingle:redirect "/")))
-
                                     (user
-                                        (let* ((token (ningle-auth/models:generate-token user ningle-auth/models:+password-reset+))
-                                               (link (build-reset-link user token))
-                                               (subject (format nil "Ningle Tutorial Project password reset for ~A" user))
-                                               (template "ningle-auth/email/reset.txt")
-                                               (content (djula:render-template* template nil :user user :link link)))
-                                            (ningle-email:send-mail subject content email)
-                                            (ingle:redirect "/")))
+                                        (when token (mito:delete-dao token))
+                                        (ningle-auth/models:on-reset user)
+                                        (ingle:redirect "/"))
 
                                     (t
                                      (djula:render-template* "error.html" nil :title "Error" :error "No user found"))))))))
@@ -176,8 +155,8 @@
 (setf (ningle:route *app* "/reset/process" :method '(:GET :POST))
       (lambda (params)
         (let* ((form (cl-forms:find-form 'new-password))
-               (user (mito:find-dao 'ningle-auth/models:user :username (cdr (assoc "user" params :test #'string=))))
-               (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+ :token (cdr (assoc "token" params :test #'string=)))))
+               (user (mito:find-dao *user* :username (ingle:get-param "user" params)))
+               (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+ :token (ingle:get-param "token" params))))
           (cond
             ((cu-sith:logged-in-p)
                 (ingle:redirect "/"))
@@ -205,7 +184,7 @@
                                 (when (string/= password password-verify)
                                     (error "Passwords do not match"))
 
-                                (let* ((user (mito:find-dao 'ningle-auth/models:user :email email))
+                                (let* ((user (mito:find-dao *user* :email email))
                                        (token (mito:find-dao 'ningle-auth/models:token :user user :token token :purpose ningle-auth/models:+password-reset+)))
                                   (if user
                                       (progn
@@ -225,45 +204,21 @@
 ;; Must not be fully set up
 (setf (ningle:route *app* "/verify")
     (lambda (params)
-      (let* ((user (mito:find-dao 'ningle-auth/models:user :username (cdr (assoc "user" params :test #'string=))))
-             (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+email-verification+ :token (cdr (assoc "token" params :test #'string=)))))
+      (let* ((user (mito:find-dao *user* :username (ingle:get-param "user" params)))
+             (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+email-verification+ :token (ingle:get-param "token" params))))
         (cond
           ((cu-sith:logged-in-p)
-            (ingle:redirect "/"))
+            (ingle:redirect (envy-ningle:get-config :login-redirect)))
 
           ((and token (ningle-auth/models:is-expired-p token))
             (mito:delete-dao token)
-            (let* ((new-token (ningle-auth/models:generate-token user ningle-auth/models:+email-verification+))
-                   (link (build-activation-link user new-token))
-                   (subject (format nil "Ningle Tutorial Project registration for ~A" user))
-                   (template "ningle-auth/email/register.txt")
-                   (content (djula:render-template* template nil :user user :link link)))
-                (ningle-email:send-mail subject content (ningle-auth/models:email user))
-            (djula:render-template* "ningle-auth/verify.html" nil :title "Verify" :token-reissued t)))
-
+            (ningle-auth/models:on-register user)
+            (djula:render-template* "ningle-auth/verify.html" nil :title "Verify" :token-reissued t))
+            
           ((not token)
             (djula:render-template* "error.html" nil :title "Error" :error "Token not valid"))
 
           (t
             (mito:delete-dao token)
-            (mito:create-dao 'ningle-auth/models:permission :user user :role (mito:find-dao 'ningle-auth/models:role :name "user"))
-            (ningle-auth/models:activate user)
-            (mito:save-dao user)
+            (ningle-auth/models:on-activate user)
             (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/login")))))))
-
-(defmethod ningle:not-found ((app ningle:<app>))
-    (declare (ignore app))
-    (setf (lack.response:response-status ningle:*response*) 404)
-    (djula:render-template* "error.html" nil :title "Error" :error "Not Found"))
-
-(defun start (&key (server :woo) (address "127.0.0.1") (port 8000))
-    (djula:add-template-directory (asdf:system-relative-pathname :ningle-auth "src/templates/"))
-    (djula:set-static-url "/public/")
-    (clack:clackup
-     (lack.builder:builder (envy-ningle:build-middleware :ningle-auth/config *app*))
-     :server server
-     :address address
-     :port port))
-
-(defun stop (instance)
-    (clack:stop instance))
