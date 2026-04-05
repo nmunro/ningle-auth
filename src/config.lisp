@@ -13,5 +13,7 @@
   `(:debug T
     :token-expiration 3600
     :email-backend :string
+    :login-redirect "/login"
+    :login-success-redirect "/"
     :middleware ((:session)
                  (:mito (:sqlite3 :database-name ,(uiop:getenv "SQLITE_DB_NAME"))))))
