@@ -5,6 +5,9 @@
     <div class="row">
         <div class="col-12">
             <h1>Reset Password</h1>
+            {% if error %}
+                {{ error }}
+            {% endif %}
             {% form form %}
         </div>
     </div>

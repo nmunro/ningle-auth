@@ -55,14 +55,14 @@
 
                           (let ((user (mito:create-dao *user* :email email :username username :password password)))
                             (ningle-auth/models:on-register user)
-                            (ingle:redirect "/"))))))
+                            (ingle:redirect (envy-ningle:get-config :login-redirect)))))))
 
                 (error (err)
-                    (djula:render-template* "error.html" nil :title "Error" :error err))
+                    (djula:render-template* "ningle-auth/register.html" nil :form form :error (format nil "~A" err)))
 
                 (simple-error (csrf-error)
                     (setf (lack.response:response-status ningle:*response*) 403)
-                    (djula:render-template* "error.html" nil :title "Error" :error csrf-error)))))))
+                    (djula:render-template* "ningle-auth/register.html" nil :form form :error "CSRF Token Invalid")))))))
 
 ;; Must be logged out
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
@@ -93,14 +93,23 @@
                                 (ingle:redirect (or next-url (envy-ningle:get-config :login-success-redirect)))))))
 
                     (cu-sith:invalid-user (err)
-                        (djula:render-template* "error.html" nil :title "Error" :error (format nil "~A, have you verified the account?" (cu-sith:msg err))))
+                        (djula:render-template* "ningle-auth/login.html" nil
+                                                :form form
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
+                                                :error (format nil "~A, have you verified the account?" (cu-sith:msg err))))
 
                     (cu-sith:invalid-password (err)
-                        (djula:render-template* "error.html" nil :title "Error" :error (cu-sith:msg err)))
+                        (djula:render-template* "ningle-auth/login.html" nil
+                                                :form form
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
+                                                :error "Invalid Password"))
 
                     (simple-error (csrf-error)
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error))))))))
+                        (djula:render-template* "ningle-auth/login.html" nil
+                                                :form form
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
+                                                :error "CSRF Token Invalid"))))))))
 
 ;; Must be logged in
 (setf (ningle:route *app* "/logout" :method :GET)
@@ -116,7 +125,7 @@
         (let ((form (cl-forms:find-form 'reset-password)))
             (cond
               ((cu-sith:logged-in-p)
-                (ingle:redirect "/"))
+                (ingle:redirect (envy-ningle:get-config :login-redirect)))
 
               ((string= "GET" (lack.request:request-method ningle:*request*))
                 (djula:render-template* "ningle-auth/reset.html" nil :title "Reset GET" :form form))
@@ -138,19 +147,19 @@
                                        (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+)))
                                   (cond
                                     ((and user token (not (ningle-auth/models:is-expired-p token)))
-                                        (djula:render-template* "error.html" nil :title "Error" :error "There is already a password reset in progress, either continue or wait a while before retrying"))
+                                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error "There is already a password reset in progress, either continue or wait a while before retrying"))
 
                                     (user
                                         (when token (mito:delete-dao token))
                                         (ningle-auth/models:on-reset user)
-                                        (ingle:redirect "/"))
+                                        (ingle:redirect (envy-ningle:get-config :login-redirect)))
 
                                     (t
-                                     (djula:render-template* "error.html" nil :title "Error" :error "No user found"))))))))
+                                     (ingle:redirect (envy-ningle:get-config :login-redirect)))))))))
 
                     (simple-error (csrf-error)
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error))))))))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error "CSRF Token Invalid"))))))))
 
 (setf (ningle:route *app* "/reset/process" :method '(:GET :POST))
       (lambda (params)
