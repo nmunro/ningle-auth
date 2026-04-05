@@ -98,7 +98,8 @@
                                                 :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
                                                 :error (format nil "~A, have you verified the account?" (cu-sith:msg err))))
 
-                    (cu-sith:invalid-password (err)
+                    (cu-sith:invalid-password ()
+                        (format t "~&[DEBUG] invalid-password handler triggered~%")
                         (djula:render-template* "ningle-auth/login.html" nil
                                                 :form form
                                                 :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
