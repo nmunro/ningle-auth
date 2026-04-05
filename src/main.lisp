@@ -208,7 +208,7 @@
 
                     (simple-error (csrf-error)
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error "CSRF Token Invalid")))))))))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string csrf-error))))))))))
 
 ;; Must not be fully set up
 (setf (ningle:route *app* "/verify")
