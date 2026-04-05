@@ -207,7 +207,6 @@
                         (djula:render-template* "ningle-auth/reset.html" nil :form form :error (format nil "~A" err)))
 
                     (simple-error (csrf-error)
-                        (declare (ignore csrf-error))
                         (setf (lack.response:response-status ningle:*response*) 403)
                         (djula:render-template* "ningle-auth/reset.html" nil :form form :error "CSRF Token Invalid")))))))))
 
