@@ -5,7 +5,9 @@
     <div class="row">
         <div class="col-12">
             <h1>Your account is almost ready!</h1>
-            {% if token-reissued %}
+            {% if error %}
+                <p>{{ error }}</p>
+            {% elif token-reissued %}
                 <p>This token has expired and a new one has been issued and sent to the email address used when registering.</p>
             {% else %}
                 <p>Please follow the instructions send to the email used when registering to verify your account!</p>

@@ -168,10 +168,10 @@
                (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+ :token (ingle:get-param "token" params))))
           (cond
             ((cu-sith:logged-in-p)
-                (ingle:redirect "/"))
+                (ingle:redirect (envy-ningle:get-config :login-redirect)))
 
             ((and (string= "GET" (lack.request:request-method ningle:*request*)) (or (not token) (ningle-auth/models:is-expired-p token)))
-                (djula:render-template* "error.html" nil :title "Error" :error "Invalid reset token, please try again"))
+                (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))
 
             ((and (string= "GET" (lack.request:request-method ningle:*request*)) token)
                 (cl-forms:set-field-value form 'ningle-auth/forms:email (ningle-auth/models:email user))
@@ -201,14 +201,15 @@
                                         (mito:save-dao user)
                                         (mito:delete-dao token)
                                         (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/login")))
-                                      (djula:render-template* "error.html" nil :title "Error" :error "No user found")))))))
+                                      (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))))))
 
                     (error (err)
-                        (djula:render-template* "error.html" nil :title "Error" :error err))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (format nil "~A" err)))
 
                     (simple-error (csrf-error)
+                        (declare (ignore csrf-error))
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "error.html" nil :title "Error" :error csrf-error))))))))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error "CSRF Token Invalid")))))))))
 
 ;; Must not be fully set up
 (setf (ningle:route *app* "/verify")
@@ -225,7 +226,8 @@
             (djula:render-template* "ningle-auth/verify.html" nil :title "Verify" :token-reissued t))
             
           ((not token)
-            (djula:render-template* "error.html" nil :title "Error" :error "Token not valid"))
+            (setf (lack.response:response-status ningle:*response*) 404)
+            (djula:render-template* "ningle-auth/verify.html" nil :error "Token not valid"))
 
           (t
             (mito:delete-dao token)
