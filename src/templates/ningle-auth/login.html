@@ -5,6 +5,9 @@
     <div class="row">
         <div class="col-12">
             <h1>Login</h1>
+            {% if error %}
+                {{ error }}
+            {% endif %}
             {% form form %}
             <h4><a href="{{ url }}">Forgotten Password?</a></h4>
         </div>
