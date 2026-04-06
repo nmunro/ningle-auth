@@ -48,21 +48,26 @@
                       (when valid
                         (cl-forms:with-form-field-values (email username password password-verify) form
                           (when (mito:select-dao *user* (where (:or (:= :username username) (:= :email email))))
-                            (error 'form-validation-error :errors "Either username or email is already registered"))
+                            (cl-forms:add-form-error 'email "Either username or email is already registered" form)
+                            (error 'form-validation-error :errors (cl-forms:form-errors form)))
 
                           (when (string/= password password-verify)
-                            (error 'form-validation-error :errors "Passwords do not match"))
+                            (cl-forms:add-form-error 'password-verify "Passwords do not match" form)
+                            (error 'form-validation-error :errors (cl-forms:form-errors form)))
 
                           (let ((user (mito:create-dao *user* :email email :username username :password password)))
                             (ningle-auth/models:on-register user)
                             (ingle:redirect (envy-ningle:get-config :login-redirect)))))))
 
                 (form-validation-error (err)
-                    (djula:render-template* "ningle-auth/register.html" nil :form form :error (princ-to-string err)))
+                    (declare (ignore err))
+                    (djula:render-template* "ningle-auth/register.html" nil :form form))
 
                 (simple-error (err)
+                    (declare (ignore err))
                     (setf (lack.response:response-status ningle:*response*) 403)
-                    (djula:render-template* "ningle-auth/register.html" nil :form form :error (princ-to-string err))))))))
+                    (cl-forms:add-form-error 'email "An unexpected error occurred, please try again" form)
+                    (djula:render-template* "ningle-auth/register.html" nil :form form)))))))
 
 ;; Must be logged out
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
@@ -93,29 +98,32 @@
                                 (ingle:redirect (or next-url (envy-ningle:get-config :login-success-redirect)))))))
 
                     (form-validation-error (err)
+                        (declare (ignore err))
                         (djula:render-template* "ningle-auth/login.html" nil
                                                 :form form
-                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
-                                                :error (princ-to-string err)))
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))
 
                     (cu-sith:invalid-user (err)
+                        (declare (ignore err))
+                        (cl-forms:add-form-error 'username "Invalid credentials, have you verified the account?" form)
                         (djula:render-template* "ningle-auth/login.html" nil
                                                 :form form
-                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
-                                                :error (format nil "~A, have you verified the account?" (cu-sith:msg err))))
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))
 
                     (cu-sith:invalid-password (err)
+                        (declare (ignore err))
+                        (cl-forms:add-form-error 'password "Invalid password" form)
                         (djula:render-template* "ningle-auth/login.html" nil
                                                 :form form
-                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
-                                                :error "Invalid Password"))
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))
 
                     (simple-error (err)
+                        (declare (ignore err))
                         (setf (lack.response:response-status ningle:*response*) 403)
+                        (cl-forms:add-form-error 'username "An unexpected error occurred, please try again" form)
                         (djula:render-template* "ningle-auth/login.html" nil
                                                 :form form
-                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
-                                                :error (princ-to-string err)))))))))
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))))))))
 
 ;; Must be logged in
 (setf (ningle:route *app* "/logout" :method :GET)
@@ -153,7 +161,8 @@
                                        (token (mito:find-dao 'ningle-auth/models:token :user user :purpose ningle-auth/models:+password-reset+)))
                                   (cond
                                     ((and user token (not (ningle-auth/models:is-expired-p token)))
-                                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error "There is already a password reset in progress, either continue or wait a while before retrying"))
+                                        (cl-forms:add-form-error 'email "There is already a password reset in progress, either continue or wait a while before retrying" form)
+                                        (djula:render-template* "ningle-auth/reset.html" nil :form form))
 
                                     (user
                                         (when token (mito:delete-dao token))
@@ -164,11 +173,14 @@
                                      (ingle:redirect (envy-ningle:get-config :login-redirect)))))))))
 
                     (form-validation-error (err)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err)))
+                        (declare (ignore err))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form))
 
                     (simple-error (err)
+                        (declare (ignore err))
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err)))))))))
+                        (cl-forms:add-form-error 'email "An unexpected error occurred, please try again" form)
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form))))))))
 
 (setf (ningle:route *app* "/reset/process" :method '(:GET :POST))
       (lambda (params)
@@ -200,7 +212,8 @@
                           (when valid
                             (cl-forms:with-form-field-values (email token password password-verify) form
                                 (when (string/= password password-verify)
-                                    (error 'form-validation-error :errors "Passwords do not match"))
+                                    (cl-forms:add-form-error 'password-verify "Passwords do not match" form)
+                                    (error 'form-validation-error :errors (cl-forms:form-errors form)))
 
                                 (let* ((user (mito:find-dao *user* :email email))
                                        (token (mito:find-dao 'ningle-auth/models:token :user user :token token :purpose ningle-auth/models:+password-reset+)))
@@ -210,14 +223,17 @@
                                         (mito:save-dao user)
                                         (mito:delete-dao token)
                                         (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/login")))
-                                      (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))))))
+                                      (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset"))))))))
 
                     (form-validation-error (err)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err)))
+                        (declare (ignore err))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form))
 
                     (simple-error (err)
+                        (declare (ignore err))
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err))))))))))
+                        (cl-forms:add-form-error 'password "An unexpected error occurred, please try again" form)
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form))))))))
 
 ;; Must not be fully set up
 (setf (ningle:route *app* "/verify")
