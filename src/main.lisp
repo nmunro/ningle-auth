@@ -43,7 +43,7 @@
                         (cl-forms:validate-form form)
 
                       (when errors
-                        (format t "Errors: ~A~%" errors))
+                        (error errors))
 
                       (when valid
                         (cl-forms:with-form-field-values (email username password password-verify) form
@@ -58,7 +58,7 @@
                             (ingle:redirect (envy-ningle:get-config :login-redirect)))))))
 
                 (error (err)
-                    (djula:render-template* "ningle-auth/register.html" nil :form form :error (format nil "~A" err)))
+                    (djula:render-template* "ningle-auth/register.html" nil :form form :error (princ-to-string err)))
 
                 (simple-error (csrf-error)
                     (setf (lack.response:response-status ningle:*response*) 403)
@@ -85,7 +85,7 @@
                             (cl-forms:validate-form form)
 
                           (when errors
-                            (format t "Errors: ~A~%" errors))
+                            (error errors))
 
                           (when valid
                             (cl-forms:with-form-field-values (username password) form
@@ -104,12 +104,12 @@
                                                 :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
                                                 :error "Invalid Password"))
 
-                    (simple-error (csrf-error)
+                    (simple-error (err)
                         (setf (lack.response:response-status ningle:*response*) 403)
                         (djula:render-template* "ningle-auth/login.html" nil
                                                 :form form
                                                 :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
-                                                :error "CSRF Token Invalid"))))))))
+                                                :error (princ-to-string err)))))))))
 
 ;; Must be logged in
 (setf (ningle:route *app* "/logout" :method :GET)
@@ -139,7 +139,7 @@
                             (cl-forms:validate-form form)
 
                           (when errors
-                            (format t "Errors: ~A~%" errors))
+                            (error errors))
 
                           (when valid
                             (cl-forms:with-form-field-values (email) form
@@ -157,9 +157,9 @@
                                     (t
                                      (ingle:redirect (envy-ningle:get-config :login-redirect)))))))))
 
-                    (simple-error (csrf-error)
+                    (simple-error (err)
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error "CSRF Token Invalid"))))))))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err)))))))))
 
 (setf (ningle:route *app* "/reset/process" :method '(:GET :POST))
       (lambda (params)
@@ -186,7 +186,7 @@
                             (cl-forms:validate-form form)
 
                           (when errors
-                            (format t "Errors: ~A~%" errors))
+                            (error errors))
 
                           (when valid
                             (cl-forms:with-form-field-values (email token password password-verify) form
@@ -204,7 +204,7 @@
                                       (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))))))
 
                     (error (err)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (format nil "~A" err)))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err)))
 
                     (simple-error (csrf-error)
                         (setf (lack.response:response-status ningle:*response*) 403)
