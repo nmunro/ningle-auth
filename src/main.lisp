@@ -1,5 +1,5 @@
 (defpackage ningle-auth
-  (:use :cl :sxql :ningle-auth/forms)
+  (:use :cl :sxql :ningle-auth/forms :ningle-auth/conditions)
   (:export #:*app*
            #:setup
            #:login-required))
@@ -43,26 +43,26 @@
                         (cl-forms:validate-form form)
 
                       (when errors
-                        (error errors))
+                        (error 'form-validation-error :errors errors))
 
                       (when valid
                         (cl-forms:with-form-field-values (email username password password-verify) form
                           (when (mito:select-dao *user* (where (:or (:= :username username) (:= :email email))))
-                            (error "Either username or email is already registered"))
+                            (error 'form-validation-error :errors "Either username or email is already registered"))
 
                           (when (string/= password password-verify)
-                            (error "Passwords do not match"))
+                            (error 'form-validation-error :errors "Passwords do not match"))
 
                           (let ((user (mito:create-dao *user* :email email :username username :password password)))
                             (ningle-auth/models:on-register user)
                             (ingle:redirect (envy-ningle:get-config :login-redirect)))))))
 
-                (error (err)
+                (form-validation-error (err)
                     (djula:render-template* "ningle-auth/register.html" nil :form form :error (princ-to-string err)))
 
-                (simple-error (csrf-error)
+                (simple-error (err)
                     (setf (lack.response:response-status ningle:*response*) 403)
-                    (djula:render-template* "ningle-auth/register.html" nil :form form :error "CSRF Token Invalid")))))))
+                    (djula:render-template* "ningle-auth/register.html" nil :form form :error (princ-to-string err))))))))
 
 ;; Must be logged out
 (setf (ningle:route *app* "/login" :method '(:GET :POST))
@@ -85,12 +85,18 @@
                             (cl-forms:validate-form form)
 
                           (when errors
-                            (error errors))
+                            (error 'form-validation-error :errors errors))
 
                           (when valid
                             (cl-forms:with-form-field-values (username password) form
                                 (cu-sith:login :user username :password password)
                                 (ingle:redirect (or next-url (envy-ningle:get-config :login-success-redirect)))))))
+
+                    (form-validation-error (err)
+                        (djula:render-template* "ningle-auth/login.html" nil
+                                                :form form
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")
+                                                :error (princ-to-string err)))
 
                     (cu-sith:invalid-user (err)
                         (djula:render-template* "ningle-auth/login.html" nil
@@ -139,7 +145,7 @@
                             (cl-forms:validate-form form)
 
                           (when errors
-                            (error errors))
+                            (error 'form-validation-error :errors errors))
 
                           (when valid
                             (cl-forms:with-form-field-values (email) form
@@ -156,6 +162,9 @@
 
                                     (t
                                      (ingle:redirect (envy-ningle:get-config :login-redirect)))))))))
+
+                    (form-validation-error (err)
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err)))
 
                     (simple-error (err)
                         (setf (lack.response:response-status ningle:*response*) 403)
@@ -186,12 +195,12 @@
                             (cl-forms:validate-form form)
 
                           (when errors
-                            (error errors))
+                            (error 'form-validation-error :errors errors))
 
                           (when valid
                             (cl-forms:with-form-field-values (email token password password-verify) form
                                 (when (string/= password password-verify)
-                                    (error "Passwords do not match"))
+                                    (error 'form-validation-error :errors "Passwords do not match"))
 
                                 (let* ((user (mito:find-dao *user* :email email))
                                        (token (mito:find-dao 'ningle-auth/models:token :user user :token token :purpose ningle-auth/models:+password-reset+)))
@@ -203,12 +212,12 @@
                                         (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/login")))
                                       (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))))))
 
-                    (error (err)
+                    (form-validation-error (err)
                         (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err)))
 
-                    (simple-error (csrf-error)
+                    (simple-error (err)
                         (setf (lack.response:response-status ningle:*response*) 403)
-                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string csrf-error))))))))))
+                        (djula:render-template* "ningle-auth/reset.html" nil :form form :error (princ-to-string err))))))))))
 
 ;; Must not be fully set up
 (setf (ningle:route *app* "/verify")

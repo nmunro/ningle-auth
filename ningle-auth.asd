@@ -19,6 +19,7 @@
   :components ((:module "src"
                 :components
                 ((:file "config")
+                 (:file "conditions")
                  (:file "token-registry")
                  (:file "forms")
                  (:file "models" :depends-on ("token-registry"))
