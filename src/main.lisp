@@ -63,6 +63,11 @@
                     (declare (ignore err))
                     (djula:render-template* "ningle-auth/register.html" nil :form form))
 
+                (cl-forms:csrf-error (err)
+                    (setf (lack.response:response-status ningle:*response*) 403)
+                    (cl-forms:add-form-error 'csrf (princ-to-string err) form)
+                    (djula:render-template* "ningle-auth/register.html" nil :form form))
+
                 (simple-error (err)
                     (declare (ignore err))
                     (setf (lack.response:response-status ningle:*response*) 403)
@@ -114,6 +119,13 @@
                         (declare (ignore err))
                         (cl-forms:add-form-error 'password "Invalid password" form)
                         (djula:render-template* "ningle-auth/login.html" nil
+                                                :form form
+                                                :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))
+
+                    (cl-forms:csrf-error (err)
+                        (setf (lack.response:response-status ningle:*response*) 403)
+                        (cl-forms:add-form-error 'csrf (princ-to-string err) form)
+                        (djula:render-template* "ningle-auth/register.html" nil
                                                 :form form
                                                 :url (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset")))
 
@@ -176,6 +188,11 @@
                         (declare (ignore err))
                         (djula:render-template* "ningle-auth/reset.html" nil :form form))
 
+                    (cl-forms:csrf-error (err)
+                        (setf (lack.response:response-status ningle:*response*) 403)
+                        (cl-forms:add-form-error 'csrf (princ-to-string err) form)
+                        (djula:render-template* "ningle-auth/register.html" nil :form form))
+
                     (simple-error (err)
                         (declare (ignore err))
                         (setf (lack.response:response-status ningle:*response*) 403)
@@ -224,6 +241,11 @@
                                         (mito:delete-dao token)
                                         (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/login")))
                                       (ingle:redirect (concatenate 'string (envy-ningle:get-config :auth-mount-path) "/reset"))))))))
+
+                    (cl-forms:csrf-error (err)
+                        (setf (lack.response:response-status ningle:*response*) 403)
+                        (cl-forms:add-form-error 'csrf (princ-to-string err) form)
+                        (djula:render-template* "ningle-auth/register.html" nil :form form))
 
                     (form-validation-error (err)
                         (declare (ignore err))
