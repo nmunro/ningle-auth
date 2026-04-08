@@ -26,6 +26,10 @@
            #:value
            #:generate-token
            #:is-expired-p
+           #:assign-role
+           #:revoke-role
+           #:has-role-p
+           #:is-admin-p
            #:on-activate
            #:on-register
            #:on-reset
@@ -122,6 +126,41 @@
            (hash (ironclad:byte-array-to-hex-string (ironclad:digest-sequence :sha256 (babel:string-to-octets base-string)))))
         (create-dao 'token :user user :purpose purpose :token hash :salt salt :expires-at expires-at))))
 
+(defgeneric assign-role (user role)
+  (:documentation "Attaches a role to a user")
+  (:method ((user user) (role role))
+    (alexandria:if-let ((permission (mito:find-dao 'permission :user user :role role)))
+      permission
+      (mito:create-dao 'permission :user user :role role)))
+
+  (:method ((user user) (role string))
+    (alexandria:when-let ((role (mito:find-dao 'role :name role)))
+      (assign-role user role))))
+
+(defgeneric revoke-role (user role)
+  (:documentation "Revokes a role from a user")
+  (:method ((user user) (role role))
+    (alexandria:when-let ((perm (mito:find-dao 'permission :user user :role role)))
+      (mito:delete-dao perm)))
+
+  (:method ((user user) (role string))
+    (alexandria:when-let ((role (mito:find-dao 'role :name role)))
+      (revoke-role user role))))
+
+(defgeneric has-role-p (user role)
+  (:documentation "Checks if a user has a given role")
+  (:method ((user user) (role role))
+    (mito:find-dao 'permission :user user :role role))
+
+  (:method ((user user) (role string))
+    (alexandria:when-let ((role (mito:find-dao 'role :name role)))
+      (has-role-p user role))))
+
+(defgeneric is-admin-p (user)
+  (:documentation "Checks if a user is an admin")
+  (:method ((user user))
+    (has-role-p user "admin")))
+
 (defgeneric on-register (user)
   (:documentation "Called when a user is registered")
   (:method ((user user))
@@ -136,7 +175,7 @@
   (:documentation "Called when a user is activated")
   (:method ((user user))
     (dolist (role *default-roles*)
-      (mito:create-dao 'permission :user user :role (mito:find-dao 'role :name role)))
+      (assign-role user role))
 
     (activate user)
     (mito:save-dao user)))
