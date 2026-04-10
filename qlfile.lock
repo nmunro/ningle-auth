@@ -15,9 +15,9 @@
   :initargs (:%version :latest)
   :version "ql-2026-01-01"))
 ("cl-forms" .
- (:class qlot/source/ql:source-ql
-  :initargs (:%version :latest)
-  :version "ql-2025-06-22"))
+ (:class qlot/source/github:source-github
+  :initargs (:repos "mmontone/cl-forms" :ref nil :branch "master" :tag nil)
+  :version "github-1d6ac379a9b443087c14f4ec4e829acffb669fb3"))
 ("envy-ningle" .
  (:class qlot/source/github:source-github
   :initargs (:repos "nmunro/envy-ningle" :ref nil :branch nil :tag nil)

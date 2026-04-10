@@ -23,7 +23,6 @@
                  (:file "token-registry")
                  (:file "forms")
                  (:file "models" :depends-on ("token-registry"))
-                 (:file "migrations")
                  (:file "main"))))
   :in-order-to ((test-op (test-op "ningle-auth/tests"))))
 

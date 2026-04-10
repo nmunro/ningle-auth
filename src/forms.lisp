@@ -3,6 +3,8 @@
   (:export #:register
            #:login
            #:reset-password
+           #:role
+           #:user
            #:new-password
            #:email
            #:username
@@ -12,8 +14,8 @@
 
 (in-package ningle-auth/forms)
 
-(defparameter *username-validator* (list (clavier:not-blank)
-                                         (clavier:is-a-string)))
+(defparameter *name-validator* (list (clavier:not-blank)
+                                     (clavier:is-a-string)))
 
 (defparameter *password-validator* (list (clavier:not-blank)
                                          (clavier:is-a-string)
@@ -25,7 +27,7 @@
 
 (cl-forms:defform register (:id "register" :csrf-protection t :csrf-field-name "csrftoken")
   ((email           :email    :value "" :constraints (list (clavier:valid-email)))
-   (username        :string   :value "" :constraints *username-validator*)
+   (username        :string   :value "" :constraints *name-validator*)
    (password        :password :value "" :constraints *password-validator*)
    (password-verify :password :value "" :constraints *password-validator*)
    (submit          :submit   :label "Register")))
@@ -45,3 +47,14 @@
    (password        :password :value "" :constraints *password-validator*)
    (password-verify :password :value "" :constraints *password-validator*)
    (submit          :submit   :value "Reset")))
+
+(cl-forms:defform role (:id "role" :csrf-protection t :csrf-field-name "csrftoken")
+  ((name        :string :value "" :constraints *name-validator*)
+   (description :string :value "" :constraints *name-validator*)
+   (submit      :submit :value "Reset")))
+
+(cl-forms:defform user (:id "user" :csrf-protection t :csrf-field-name "csrftoken")
+  ((email    :string  :value "" :constraints *name-validator*)
+   (username :string  :value "" :constraints *name-validator*)
+   (active   :boolean :value nil)
+   (submit   :submit  :value "Reset")))
