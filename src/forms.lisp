@@ -51,10 +51,10 @@
 (cl-forms:defform role (:id "role" :csrf-protection t :csrf-field-name "csrftoken")
   ((name        :string :value "" :constraints *name-validator*)
    (description :string :value "" :constraints *name-validator*)
-   (submit      :submit :value "Reset")))
+   (submit      :submit :value "Save")))
 
 (cl-forms:defform user (:id "user" :csrf-protection t :csrf-field-name "csrftoken")
   ((email    :string  :value "" :constraints *name-validator*)
    (username :string  :value "" :constraints *name-validator*)
    (active   :boolean :value nil)
-   (submit   :submit  :value "Reset")))
+   (submit   :submit  :value "Save")))
