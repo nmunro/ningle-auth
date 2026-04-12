@@ -195,7 +195,7 @@
 (defgeneric on-delete (user)
   (:documentation "Called when a user is deleted")
   (:method ((user user))
-    (dolist (perm (mito:select-dao 'permission :user-id (mito:object-id user)))
+    (dolist (perm (mito:select-dao 'permission (sxql:where (:= :user-id (mito:object-id user)))))
       (mito:delete-dao perm))
     (mito:delete-dao user))
 
