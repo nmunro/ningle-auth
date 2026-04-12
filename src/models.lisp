@@ -33,6 +33,8 @@
            #:on-activate
            #:on-register
            #:on-reset
+           #:on-delete
+           #:destroy
            ;; Re-export from token-registry for convenience
            #:+email-verification+
            #:+password-reset+
@@ -189,3 +191,16 @@
            (template "ningle-auth/email/reset.txt")
            (content (djula:render-template* template nil :user user :link link)))
         (ningle-email:send-mail subject content (email user)))))
+
+(defgeneric on-delete (user)
+  (:documentation "Called when a user is deleted")
+  (:method ((user user))
+    (dolist (perm (mito:select-dao 'permission :user user))
+      (mito:delete-dao perm))
+    (mito:delete-dao user))
+
+  (:method ((role role))
+    nil))
+
+(defun destroy (object)
+  (on-delete object))
