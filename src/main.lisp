@@ -2,7 +2,8 @@
   (:use :cl :sxql :ningle-auth/forms :ningle-auth/conditions)
   (:export #:*app*
            #:setup
-           #:login-required))
+           #:login-required
+           #:safe-redirect-p))
 
 (in-package ningle-auth)
 
@@ -14,6 +15,13 @@
     (if (cu-sith:logged-in-p)
         (funcall controller params)
         (ingle:redirect (format nil "~A?next=~A" (envy-ningle:get-config :login-redirect) (lack/request:request-uri ningle:*request*))))))
+
+(defun safe-redirect-p (url)
+  (and (stringp url)
+       (> (length url) 0)
+       (char= (char url 0) #\/)
+       (or (= (length url) 1)
+           (not (char= (char url 1) #\/)))))
 
 (defun get-user (username)
   (mito:find-dao 'ningle-auth/models:user :username username :active 1))
@@ -99,7 +107,9 @@
                           (when valid
                             (cl-forms:with-form-field-values (username password) form
                                 (cu-sith:login :user username :password password)
-                                (ingle:redirect (or next-url (envy-ningle:get-config :login-success-redirect)))))))
+                                (ingle:redirect (if (safe-redirect-p next-url)
+                                                    next-url
+                                                    (envy-ningle:get-config :login-success-redirect)))))))
 
                     (form-validation-error (err)
                         (declare (ignore err))
