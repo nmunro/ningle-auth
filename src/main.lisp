@@ -32,7 +32,7 @@
 (defun setup (&key (user 'ningle-auth/models:user) (user-p #'get-user) (default-roles '("user")) (extra-token-purposes nil))
   (setf *user* user)
   (setf ningle-auth/models:*default-roles* default-roles)
-  (cu-sith:setup :user-p user-p :user-permissions #'get-permissions)
+  (cu-sith:setup :user-p user-p)
   (djula:add-template-directory (asdf:system-relative-pathname :ningle-auth "src/templates/"))
 
   (dolist (token extra-token-purposes)
