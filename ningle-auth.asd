@@ -15,6 +15,8 @@
                :ingle
                :local-time
                :cu-sith
+               :alexandria
+               :quri
                :ningle-email)
   :components ((:module "src"
                 :components
