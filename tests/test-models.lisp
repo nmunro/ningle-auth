@@ -343,3 +343,24 @@
       ;; Tokens for different users should be different
       (ok (not (equal (ningle-auth/models:value token1) (ningle-auth/models:value token2)))
           "Tokens for different users should have different hashes"))))
+
+(deftest test-build-url-root
+  (testing "build-url-root handles string url-scheme from Woo"
+    (let* ((headers (make-hash-table :test 'equal))
+           (req (lack/request:make-request `(:request-method :get :request-uri "/" :server-name "localhost" :server-port 8000 :url-scheme "http" :headers ,headers))))
+      (let ((ningle:*request* req))
+        (ok (string= (ningle-auth/models::build-url-root :path "/auth")
+                     "http://localhost:8000/auth")))))
+  (testing "build-url-root handles symbol url-scheme from Hunchentoot"
+    (let* ((headers (make-hash-table :test 'equal))
+           (req (lack/request:make-request `(:request-method :get :request-uri "/" :server-name "localhost" :server-port 80 :url-scheme :http :headers ,headers))))
+      (let ((ningle:*request* req))
+        (ok (string= (ningle-auth/models::build-url-root :path "/auth")
+                     "http://localhost/auth")))))
+  (testing "build-url-root respects x-forwarded-proto"
+    (let* ((headers (make-hash-table :test 'equal)))
+      (setf (gethash "x-forwarded-proto" headers) "https")
+      (let* ((req (lack/request:make-request `(:request-method :get :request-uri "/" :server-name "example.com" :server-port 80 :url-scheme "http" :headers ,headers))))
+        (let ((ningle:*request* req))
+          (ok (string= (ningle-auth/models::build-url-root :path "/auth")
+                       "https://example.com/auth")))))))

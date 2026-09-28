@@ -20,7 +20,10 @@
 (defun setup-test-db ()
   "Create fresh in-memory test database with schema and seed data"
   (mito:connect-toplevel :sqlite3 :database-name ":memory:")
-  (ningle-auth/migrations:migrate))
+  (mito:ensure-table-exists 'ningle-auth/models:user)
+  (mito:ensure-table-exists 'ningle-auth/models:role)
+  (mito:ensure-table-exists 'ningle-auth/models:permission)
+  (mito:ensure-table-exists 'ningle-auth/models:token))
 
 (defun teardown-test-db ()
   "Clean up test database connection"

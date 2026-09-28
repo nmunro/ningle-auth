@@ -70,8 +70,8 @@
 
 (defun build-url-root (&key (path ""))
   (let* ((headers (lack/request:request-headers ningle:*request*))
-         (scheme (or (gethash "x-forwarded-proto" headers)
-                     (string-downcase (symbol-name (lack/request:request-uri-scheme ningle:*request*)))))
+         (scheme (string-downcase (or (gethash "x-forwarded-proto" headers)
+                                     (lack/request:request-uri-scheme ningle:*request*))))
          (host (or (gethash "x-forwarded-host" headers)
                    (gethash "host" headers)
                    (lack/request:request-server-name ningle:*request*)))
